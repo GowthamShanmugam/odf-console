@@ -8,16 +8,25 @@
     }
   },
   {
+    "type": "console.flag",
+    "properties": {
+      "handler": {
+        "$codeRef": "features.detectRGW"
+      }
+    }
+  },
+  {
     "type": "console.navigation/href",
     "properties": {
       "id": "odfdashboard",
+      "perspective": "acm",
       "insertBefore": "persistentvolumes",
-      "section": "storage",
+      "section": "data-service-section",
       "name": "OpenShift Data Foundation",
       "href": "/odf/cluster"
     },
     "flags": {
-      "required": ["ODF_MODEL"],
+      "required": ["ODF_MODEL", "ACM"],
       "disallowed": ["ODF_MANAGED"]
     }
   },
@@ -53,6 +62,24 @@
     },
     "flags": {
       "required": ["ODF_MODEL"]
+    }
+  },
+  {
+    "type": "console.navigation/section",
+    "properties": {
+      "id": "data-service-section",
+      "perspective": "acm",
+      "name": "Data Services"
+    }
+  },
+  {
+    "type": "console.navigation/href",
+    "properties": {
+      "id": "odf-data-service-section",
+      "perspective": "acm",
+      "section": "data-service-section",
+      "name": "Data foundation",
+      "href": ""
     }
   }
 ]

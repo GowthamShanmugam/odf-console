@@ -46,6 +46,7 @@
     "react-router-dom": "5.2.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "4.1.0",
     "@cypress/webpack-preprocessor": "^5.9.1",
     "@openshift-console/dynamic-plugin-sdk": "0.0.3",
     "@openshift-console/dynamic-plugin-sdk-internal": "0.0.2",
