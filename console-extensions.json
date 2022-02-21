@@ -54,5 +54,51 @@
     "flags": {
       "required": ["ODF_MODEL"]
     }
+  },
+  {
+    "type": "console.flag/model",
+    "properties": {
+      "model": {
+        "group": "ramendr.openshift.io",
+        "version": "v1alpha1",
+        "kind": "DRPolicy"
+      },
+      "flag": "ODR_MODEL"
+    }
+  },
+  {
+    "type": "console.navigation/section",
+    "properties": {
+      "id": "data-service-section",
+      "perspective": "acm",
+      "name": "Data Services"
+    },
+    "flags": {
+      "required": ["ODR_MODEL"]
+    }
+  },
+  {
+    "type": "console.navigation/href",
+    "properties": {
+      "id": "datapolicy",
+      "perspective": "acm",
+      "section": "data-service-section",
+      "name": "Data Policy",
+      "href": "/multicloud/dataservices/datapolicy"
+    },
+    "flags": {
+      "required": ["ODR_MODEL"]
+    }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
+      "path": ["/multicloud/dataservices/datapolicy"],
+      "exact": false,
+      "component": { "$codeRef": "datapolicy.default" }
+    },
+    "flags": {
+      "required": ["ODR_MODEL"]
+    }
   }
 ]
