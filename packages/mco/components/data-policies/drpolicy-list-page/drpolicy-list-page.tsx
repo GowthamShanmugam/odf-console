@@ -53,7 +53,7 @@ const DRPolicyRow: React.FC<RowProps<DRPolicyKind>> = ({
           {"Status"}
         </TableData>
         <TableData {...tableColumnInfo[2]} activeColumnIDs={activeColumnIDs}>
-          {"Cluster 1"}<br/>{"Cluster 2"}
+          {process.env.ENABLE_HUB_UI}
         </TableData>
         <TableData {...tableColumnInfo[3]} activeColumnIDs={activeColumnIDs}>
           {"Synchronous"}

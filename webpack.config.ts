@@ -5,6 +5,8 @@ import { ConsoleRemotePlugin } from '@openshift-console/dynamic-plugin-sdk-webpa
 import * as CopyWebpackPlugin from 'copy-webpack-plugin';
 import * as webpack from 'webpack';
 
+const Dotenv = require('dotenv-webpack');
+
 const config: webpack.Configuration = {
   mode: 'development',
   entry: {},
@@ -83,6 +85,10 @@ const config: webpack.Configuration = {
     patterns: [
       { from: path.resolve(__dirname, 'locales'), to: 'locales' }
     ]
+  }),
+  new Dotenv({
+    allowEmptyValues: true,
+    systemvars: true,
   })],
   devtool: 'cheap-module-source-map',
   optimization: {

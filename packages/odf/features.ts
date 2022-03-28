@@ -5,6 +5,7 @@ import * as _ from 'lodash';
 import { CEPH_STORAGE_NAMESPACE, SECOND } from './constants';
 
 export const ODF_MODEL_FLAG = 'ODF_MODEL';
+export const MCO_FLAG = 'MCO_FLAG';
 export const OCS_INDEPENDENT_FLAG = 'OCS_INDEPENDENT';
 export const OCS_CONVERGED_FLAG = 'OCS_CONVERGED';
 export const ODF_MANAGED_FLAG = 'ODF_MANAGED';
@@ -58,6 +59,7 @@ const setOCSFlagsFalse = (setFlag: SetFeatureFlag) => {
 };
 
 export const setODFFlag = (setFlag: SetFeatureFlag) => setFlag(ODF_MODEL_FLAG, true);
+export const setMCOFlag = (setFlag: SetFeatureFlag) => process.env.ENABLE_HUB_UI === "true" ? setFlag(MCO_FLAG, true) : setFlag(MCO_FLAG, false);
 
 export const setOCSFlags = async (setFlag: SetFeatureFlag) => {
   let ocsIntervalId = null;

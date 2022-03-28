@@ -8,6 +8,14 @@
     }
   },
   {
+    "type": "console.flag",
+    "properties": {
+      "handler": {
+        "$codeRef": "features.setMCOFlag"
+      }
+    }
+  },
+  {
     "type": "console.navigation/href",
     "properties": {
       "id": "odfdashboard",
@@ -18,7 +26,7 @@
     },
     "flags": {
       "required": ["ODF_MODEL"],
-      "disallowed": ["ODF_MANAGED"]
+      "disallowed": ["ODF_MANAGED", "MCO_FLAG"]
     }
   },
   {
@@ -59,7 +67,7 @@
     "type": "console.navigation/section",
     "properties": {
       "id": "mco-data-services",
-      "perspective": "acm",
+      "perspective": "admin",
       "name": "%plugin__odf-plugin~Data Services%",
       "insertBefore": "acm-applications"
     }
@@ -68,10 +76,13 @@
     "type": "console.navigation/href",
     "properties": {
       "id": "mco-data-policies",
-      "perspective": "acm",
+      "perspective": "admin",
       "section": "mco-data-services",
       "name": "%plugin__odf-plugin~Data policies%",
       "href": "/multicloud/data-services/data-policies"
+    },
+    "flags": {
+      "required": ["MCO_FLAG"]
     }
   },
   {
