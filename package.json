@@ -53,7 +53,8 @@
     "react-redux": "^7.2.6",
     "react-router": "5.2.0",
     "react-router-dom": "5.2.0",
-    "react-tagsinput": "^3.19.0"
+    "react-tagsinput": "^3.19.0",
+    "react-modal": "^3.12.1"
   },
   "devDependencies": {
     "@cypress/webpack-preprocessor": "^5.9.1",
@@ -138,7 +139,13 @@
       "bcCreate": "@odf/core/components/bucket-class/create-bc",
       "bsDetails": "@odf/core/components/resource-pages/BackingStoreDetailsPage",
       "bcDetails": "@odf/core/components/resource-pages/BucketClassDetailsPage",
+<<<<<<< Updated upstream
       "nsDetails": "@odf/core/components/resource-pages/NamespaceStoreDetailsPage"
+=======
+      "nsDetails": "@odf/core/components/resource-pages/NamespaceStoreDetailsPage",
+      "editPage": "@odf/core/components/ResourceEditor/GenericResourceEditor",
+      "demoModal": "@odf/mco/components/demo/demo"
+>>>>>>> Stashed changes
     }
   }
 }

@@ -436,5 +436,15 @@
     "flags": {
       "disallowed": ["MCO"]
     }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
+      "path": "/odf/edit/:cluster/ns/:namespace/:kind/:name/yaml",
+      "exact": true,
+      "component": {
+        "$codeRef": "editPage.default"
+      }
+    }
   }
 ]
