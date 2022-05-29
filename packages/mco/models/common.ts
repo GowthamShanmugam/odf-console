@@ -71,3 +71,15 @@ export const ACMSubscriptionModel: K8sModel = {
   kind: 'Subscription',
   crd: true,
 };
+
+export const ACMMulticlusterViewModel: K8sModel = {
+  label: 'ManagedClusterView',
+  labelPlural: 'ManagedClusterViews',
+  apiVersion: 'v1beta1',
+  apiGroup: 'view.open-cluster-management.io',
+  plural: 'managedclusterviews',
+  abbr: 'MCV',
+  namespaced: true,
+  kind: 'ManagedClusterView',
+  crd: true,
+};

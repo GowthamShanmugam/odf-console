@@ -114,3 +114,21 @@ export type AppToPlacementRule = {
     };
   };
 };
+
+export type ACMManagedClusterViewKind = K8sResourceCommon & {
+  spec: {
+    scope: {
+      apiGroup?: string;
+      kind?: string;
+      version?: string;
+      resource?: string;
+      name: string;
+      namespace?: string;
+      updateIntervalSeconds?: number;
+    };
+  };
+  status?: {
+    conditions?: K8sResourceCondition[];
+    result?: K8sResourceCommon;
+  };
+};

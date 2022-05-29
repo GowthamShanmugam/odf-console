@@ -203,9 +203,8 @@
     "type": "console.navigation/section",
     "properties": {
       "id": "mco-data-services",
-      "perspective": "acm",
-      "name": "%plugin__odf-plugin~Data Services%",
-      "insertBefore": "acm-applications"
+      "perspective": "admin",
+      "name": "%plugin__odf-plugin~Data Services%"
     },
     "flags": {
       "required": ["MCO"]
@@ -215,7 +214,7 @@
     "type": "console.navigation/href",
     "properties": {
       "id": "mco-data-policies",
-      "perspective": "acm",
+      "perspective": "admin",
       "section": "mco-data-services",
       "name": "%plugin__odf-plugin~Data policies%",
       "href": "/multicloud/data-services/data-policies"

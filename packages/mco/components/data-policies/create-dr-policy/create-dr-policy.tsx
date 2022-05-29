@@ -1,30 +1,30 @@
 import * as React from 'react';
 import { CEPH_STORAGE_NAMESPACE } from '@odf/shared/constants/common';
 import PageHeading from '@odf/shared/heading/page-heading';
-import { useK8sGet } from '@odf/shared/hooks/k8s-get-hook';
+import { useDeepCompareMemoize } from '@odf/shared/hooks/deep-compare-memoize';
 import {
   ODFStorageSystem,
   CephClusterModel,
-  ClusterServiceVersionModel,
+  SubscriptionModel,
 } from '@odf/shared/models';
 import {
   K8sResourceKind,
-  ClusterServiceVersionKind,
   StorageSystemKind,
-  ListKind,
+  SubscriptionKind,
+  CephClusterKind,
 } from '@odf/shared/types';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
 import {
   referenceForGroupVersionKind,
   referenceForModel,
-  getODFCsv,
-  getOCSStorageSystem,
 } from '@odf/shared/utils';
 import {
   getAPIVersionForModel,
   k8sCreate,
   k8sPatch,
+  K8sResourceCommon,
   useK8sWatchResource,
+  useK8sWatchResources,
 } from '@openshift-console/dynamic-plugin-sdk';
 import * as _ from 'lodash';
 import { RouteComponentProps, match as Match } from 'react-router';
@@ -33,37 +33,50 @@ import {
   FormGroup,
   Text,
   TextInput,
-  Badge,
   TextContent,
   TextVariants,
-  InputGroup,
   ActionGroup,
   Button,
   ButtonVariant,
-  Flex,
-  FlexItem,
-  Dropdown,
-  DropdownItem,
-  DropdownToggle,
   Alert,
   AlertVariant,
 } from '@patternfly/react-core';
-import { CaretDownIcon } from '@patternfly/react-icons';
 import {
   MAX_ALLOWED_CLUSTERS,
   REPLICATION_TYPE,
   ODF_MINIMUM_SUPPORT,
-  CEPH_CLUSTER_NAME,
   HUB_CLUSTER_NAME,
+  CREATE_BY_LABEL,
+  MCO_PLUGIN_NAME,
+  ODF_OPERATOR_SUBSCRIPTION_VIEW_NAME,
+  CEPH_EXTERNAL_CLUSTER_VIEW_NAME,
+  CEPH_INTERNAL_CLUSTER_VIEW_NAME,
+  STORAGE_SYSTEM_EXTERNAL_VIEW_NAME,
+  STORAGE_SYSTEM_INTERNAL_VIEW_NAME,
+  STORAGE_SYSTEM_EXTERNAL_NAME,
 } from '../../../constants';
-import { DRPolicyModel, MirrorPeerModel } from '../../../models';
-import { DRPolicyKind, MirrorPeerKind } from '../../../types';
-import { isMinimumSupportedODFVersion } from '../../../utils/disaster-recovery';
 import {
-  Cluster,
-  SelectClusterList,
-  ManagedClusterMapping,
-} from './select-cluster-list';
+  ACMMulticlusterViewModel,
+  DRPolicyModel,
+  MirrorPeerModel,
+} from '../../../models';
+import {
+  ACMManagedClusterViewKind,
+  DRPolicyKind,
+  MirrorPeerKind,
+} from '../../../types';
+import {
+  drPolicyReducer,
+  drPolicyInitialState,
+  DRPolicyActionType,
+  ClusterToManagedClusterView,
+  ManagedClusterView,
+} from './reducer';
+import { SelectClusterList } from './select-cluster-list';
+import { DRReplicationType } from './select-replication-type';
+import {
+  SelectedCluster,
+} from './selected-cluster-view';
 import './create-dr-policy.scss';
 
 const fetchMirrorPeer = (
@@ -76,189 +89,93 @@ const fetchMirrorPeer = (
     return existingPeerNames.sort().join(',') === peerNames.sort().join(',');
   });
 
-type SelectedClusterProps = {
-  id: number;
-  cluster: Cluster;
-  setSelectedClusters: React.Dispatch<
-    React.SetStateAction<ManagedClusterMapping>
-  >;
-};
-
-const SelectedCluster: React.FC<SelectedClusterProps> = ({
-  id,
-  cluster,
-  setSelectedClusters,
-}) => {
-  const { name: clusterName, region, storageSystemName } = cluster ?? {};
-
-  const [ssList, ssLoaded, ssLoadError] = useK8sGet<
-    ListKind<StorageSystemKind>
-  >(ODFStorageSystem, null, CEPH_STORAGE_NAMESPACE, clusterName);
-
-  const [cephCluster, cephClusterLoaded, cephClusterLoadError] =
-    useK8sGet<K8sResourceKind>(
-      CephClusterModel,
-      CEPH_CLUSTER_NAME,
-      CEPH_STORAGE_NAMESPACE,
-      clusterName
-    );
-
-  const [csvList, csvListLoaded, csvListLoadError] = useK8sGet<
-    ListKind<ClusterServiceVersionKind>
-  >(ClusterServiceVersionModel, null, CEPH_STORAGE_NAMESPACE, clusterName);
-
-  React.useEffect(() => {
-    if (
-      ssLoaded &&
-      cephClusterLoaded &&
-      csvListLoaded &&
-      !(ssLoadError && cephClusterLoadError && csvListLoadError)
-    ) {
-      const operator = getODFCsv(csvList?.items);
-      const storageSystem = getOCSStorageSystem(ssList?.items);
-      const odfVersion = operator?.spec?.version ?? '';
-      setSelectedClusters((selectedClusters) => ({
-        ...selectedClusters,
-        [clusterName]: {
-          name: clusterName,
-          region: region,
-          storageClusterId: cephCluster?.status?.ceph?.fsid ?? '',
-          storageSystemName: storageSystem?.metadata?.name ?? '',
-          storageClusterName: storageSystem?.spec?.name ?? '',
-          odfVersion: odfVersion,
-          isValidODFVersion: isMinimumSupportedODFVersion(odfVersion),
-          storageSystemLoaded: true,
-          storageClusterIdLoaded: true,
-          csvLoaded: true,
-        },
-      }));
+const createClusterToManagedClusterView = (
+  acmManagedClusterViews: ACMManagedClusterViewKind[]
+): ClusterToManagedClusterView =>
+  acmManagedClusterViews.reduce((acc, obj) => {
+    const clusterView: K8sResourceCommon = obj.status?.result || {};
+    const managedClusterView: ManagedClusterView = acc?.[
+      obj.metadata.namespace
+    ] || {
+      subscription: '',
+      storageSystem: {},
+      cephCluster: {},
+      cephClusterLoaded: false,
+      subscriptionViewLoaded: false,
+      storageSystemViewLoaded: false,
+    };
+    if (obj?.metadata?.labels?.[CREATE_BY_LABEL] === MCO_PLUGIN_NAME) {
+      // keep already existing ManagedClusterViews list to avoid recreation
+      if (ODF_OPERATOR_SUBSCRIPTION_VIEW_NAME === obj.metadata.name)
+        managedClusterView.subscriptionViewLoaded = true;
+      if (
+        [
+          STORAGE_SYSTEM_INTERNAL_VIEW_NAME,
+          STORAGE_SYSTEM_EXTERNAL_VIEW_NAME,
+        ].includes(obj.metadata.name)
+      )
+        managedClusterView.storageSystemViewLoaded = true;
+      if (
+        [
+          CEPH_INTERNAL_CLUSTER_VIEW_NAME,
+          CEPH_EXTERNAL_CLUSTER_VIEW_NAME,
+        ].includes(obj.metadata.name)
+      )
+        managedClusterView.cephClusterLoaded = true;
+      switch (clusterView?.kind) {
+        case SubscriptionModel.kind:
+          managedClusterView.subscription = clusterView as SubscriptionKind;
+          break;
+        case ODFStorageSystem.kind:
+          managedClusterView.storageSystem = clusterView as StorageSystemKind;
+          break;
+        case CephClusterModel.kind:
+          managedClusterView.cephCluster = clusterView as CephClusterKind;
+          break;
+      }
     }
-  }, [
-    ssLoaded,
-    cephClusterLoaded,
-    csvListLoaded,
-    ssLoadError,
-    cephClusterLoadError,
-    csvListLoadError,
-    ssList,
-    cephCluster,
-    csvList,
-    clusterName,
-    region,
-    setSelectedClusters,
-  ]);
+    return {
+      ...acc,
+      [obj.metadata.namespace]: managedClusterView,
+    };
+  }, {});
 
-  return (
-    <Flex
-      display={{ default: 'inlineFlex' }}
-      className="mco-create-data-policy__flex"
-    >
-      <FlexItem>
-        <Badge key={id} isRead>
-          {id}
-        </Badge>
-      </FlexItem>
-      <FlexItem>
-        <TextContent>
-          <Text component={TextVariants.p}>{clusterName}</Text>
-          <Text component={TextVariants.small}>{region}</Text>
-          <Text component={TextVariants.small}>{storageSystemName}</Text>
-        </TextContent>
-      </FlexItem>
-    </Flex>
-  );
-};
-
-const SyncSchedule: React.FC<SyncScheduleProps> = ({
-  schedule,
-  setSchedule,
-}) => {
-  const { t } = useCustomTranslation();
-
-  const SyncSchedule = {
-    minutes: t('minutes'),
-    hours: t('hours'),
-    days: t('days'),
-  };
-  const SCHEDULE_FORMAT = {
-    [SyncSchedule.minutes]: 'm',
-    [SyncSchedule.hours]: 'h',
-    [SyncSchedule.days]: 'd',
-  };
-
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [selectedFormat, setSelectedFormat] = React.useState(
-    SyncSchedule.minutes
-  );
-
-  const setSyncSchedule = (time: string, format?: string) =>
-    setSchedule(`${time}${SCHEDULE_FORMAT[format ?? selectedFormat]}`);
-
-  const onSelect = (event) => {
-    const scheduleTime = schedule.match(/\d+/g)[0];
-    const newScheduleFormat = event.target.value;
-    setIsOpen(false);
-    setSelectedFormat(newScheduleFormat);
-    setSyncSchedule(scheduleTime, newScheduleFormat);
-  };
-
-  return (
-    <InputGroup>
-      <TextInput
-        id="sync-schedule"
-        data-test="sync-schedule-text"
-        defaultValue="5"
-        type="number"
-        onChange={(scheduleTime) => setSyncSchedule(scheduleTime)}
-        isRequired
-      />
-      <Dropdown
-        data-test="sync-schedule-dropdown"
-        aria-label={t('Select schedule time format in minutes, hours or days')}
-        onSelect={onSelect}
-        toggle={
-          <DropdownToggle
-            onToggle={(open) => setIsOpen(open)}
-            data-test="sync-schedule-dropdown-toggle"
-          >
-            {selectedFormat}
-          </DropdownToggle>
-        }
-        isOpen={isOpen}
-        dropdownItems={[
-          <DropdownItem
-            data-test="sync-schedule-minutes-dropdown-item"
-            key="minutes"
-            value={SyncSchedule.minutes}
-            component="button"
-          >
-            {SyncSchedule.minutes}
-          </DropdownItem>,
-          <DropdownItem
-            data-test="sync-schedule-hours-dropdown-item"
-            key="hours"
-            value={SyncSchedule.hours}
-            component="button"
-          >
-            {SyncSchedule.hours}
-          </DropdownItem>,
-          <DropdownItem
-            data-test="sync-schedule-days-dropdown-item"
-            key="days"
-            value={SyncSchedule.days}
-            component="button"
-          >
-            {SyncSchedule.days}
-          </DropdownItem>,
-        ]}
-      />
-    </InputGroup>
-  );
-};
-
-type SyncScheduleProps = {
-  schedule: string;
-  setSchedule: React.Dispatch<React.SetStateAction<string>>;
+const resources = {
+  cephClusterInternal: {
+    kind: referenceForModel(ACMMulticlusterViewModel),
+    name: CEPH_INTERNAL_CLUSTER_VIEW_NAME,
+    namespaced: true,
+    isList: true,
+    cluster: HUB_CLUSTER_NAME,
+  },
+  cephClusterExternal: {
+    kind: referenceForModel(ACMMulticlusterViewModel),
+    name: CEPH_EXTERNAL_CLUSTER_VIEW_NAME,
+    namespaced: true,
+    isList: true,
+    cluster: HUB_CLUSTER_NAME,
+  },
+  storageSystemInternal: {
+    kind: referenceForModel(ACMMulticlusterViewModel),
+    name: STORAGE_SYSTEM_INTERNAL_VIEW_NAME,
+    namespaced: true,
+    isList: true,
+    cluster: HUB_CLUSTER_NAME,
+  },
+  storageSystemExternal: {
+    kind: referenceForModel(ACMMulticlusterViewModel),
+    name: STORAGE_SYSTEM_EXTERNAL_NAME,
+    namespaced: true,
+    isList: true,
+    cluster: HUB_CLUSTER_NAME,
+  },
+  subscriptions: {
+    kind: referenceForModel(ACMMulticlusterViewModel),
+    name: ODF_OPERATOR_SUBSCRIPTION_VIEW_NAME,
+    namespaced: true,
+    isList: true,
+    cluster: HUB_CLUSTER_NAME,
+  },
 };
 
 type ReRouteResourceProps = {
@@ -272,91 +189,149 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
 }) => {
   const { t } = useCustomTranslation();
   const { url } = match;
+  const [state, dispatch] = React.useReducer(
+    drPolicyReducer,
+    drPolicyInitialState
+  );
+  const clustersData = React.useMemo(
+    () => Object.values(state.selectedClusters),
+    [state.selectedClusters]
+  );
 
-  const [policyName, setPolicyName] = React.useState('');
-  const [replication, setReplication] = React.useState('');
-  const [syncTime, setSyncTime] = React.useState('5m');
-  const [isODFDetected, setODFDetected] = React.useState(false);
-  const [selectedClusters, setSelectedClusters] =
-    React.useState<ManagedClusterMapping>({});
-  const [isReplicationOpen, setReplicationOpen] = React.useState(false);
-  const [isReplicationInputManual, setIsReplicationInputManual] =
-    React.useState(false);
-  const [errorMessage, setError] = React.useState('');
+  // odfmco mirrorpeer info
   const [mirrorPeers] = useK8sWatchResource<MirrorPeerKind[]>({
     kind: referenceForModel(MirrorPeerModel),
     isList: true,
     namespaced: false,
     cluster: HUB_CLUSTER_NAME,
   });
+  // acm managed cluster info
+  const response = useK8sWatchResources(resources);
+  const memoizedResponse = useDeepCompareMemoize(response, true);
 
-  const clustersData = React.useMemo(
-    () => Object.values(selectedClusters),
-    [selectedClusters]
-  );
+  React.useEffect(() => {
+    const {
+      data: cephInternalData,
+      loaded: cephInternalLoaded,
+      loadError: cephInternalLoadError,
+    } = memoizedResponse?.cephClusterInternal;
+    const {
+      data: cephExternalData,
+      loaded: cephExternalLoaded,
+      loadError: cephExternalLoadError,
+    } = memoizedResponse?.cephClusterExternal;
+    const {
+      data: ssInternalData,
+      loaded: ssInternalLoaded,
+      loadError: ssInternalLoadError,
+    } = memoizedResponse?.storageSystemInternal;
+    const {
+      data: ssExternalData,
+      loaded: ssExternalLoaded,
+      loadError: ssExternalloadError,
+    } = memoizedResponse?.storageSystemExternal;
+    const {
+      data: subsData,
+      loaded: subsLoaded,
+      loadError: subsLoadError,
+    } = memoizedResponse?.subscriptions;
+
+    if (
+      cephInternalData &&
+      cephInternalLoaded &&
+      !cephInternalLoadError &&
+      cephExternalData &&
+      cephExternalLoaded &&
+      !cephExternalLoadError &&
+      ssInternalData &&
+      ssInternalLoaded &&
+      !ssInternalLoadError &&
+      ssExternalData &&
+      ssExternalLoaded &&
+      !ssExternalloadError &&
+      subsData &&
+      subsLoaded &&
+      !subsLoadError
+    ) {
+      dispatch({
+        type: DRPolicyActionType.SET_CLUSTER_TO_MANAGED_CLUSTER_VIEW,
+        payload: createClusterToManagedClusterView([
+          ...(cephInternalData as ACMManagedClusterViewKind[]),
+          ...(cephExternalData as ACMManagedClusterViewKind[]),
+          ...(ssInternalData as ACMManagedClusterViewKind[]),
+          ...(ssExternalData as ACMManagedClusterViewKind[]),
+          ...(subsData as ACMManagedClusterViewKind[]),
+        ]),
+      });
+    }
+  }, [memoizedResponse, dispatch]);
 
   React.useEffect(() => {
     if (clustersData.length === 2) {
       // ODF detection
-      setODFDetected(
-        clustersData.every(
+      dispatch({
+        type: DRPolicyActionType.SET_IS_ODF_DETECTED,
+        payload: clustersData.every(
           (cluster) =>
             cluster?.storageSystemName !== '' && cluster?.isValidODFVersion
-        )
-      );
+        ),
+      });
+
       // DR replication type
       const isReplicationAutoDetectable = clustersData?.every(
-        (cluster) => cluster?.storageClusterId !== ''
+        (cluster) => cluster?.cephFSID !== ''
       );
-      const storageClusterIDs = clustersData?.reduce((ids, cluster) => {
-        if (cluster?.storageClusterId !== '') {
-          ids.add(cluster?.storageClusterId);
+      const cephFSIDs = clustersData?.reduce((ids, cluster) => {
+        if (cluster?.cephFSID !== '') {
+          ids.add(cluster?.cephFSID);
         }
         return ids;
       }, new Set());
-      setIsReplicationInputManual(!isReplicationAutoDetectable);
-      setReplication(
-        isReplicationAutoDetectable && storageClusterIDs.size <= 1
-          ? REPLICATION_TYPE(t)['sync']
-          : REPLICATION_TYPE(t)['async']
-      );
-    } else {
-      setODFDetected(false);
-      setReplication('');
-      setIsReplicationInputManual(false);
-    }
-  }, [clustersData, t, isReplicationInputManual]);
 
-  const replicationDropdownItems = Object.values(REPLICATION_TYPE(t)).map(
-    (replType) => (
-      <DropdownItem
-        isDisabled={!isReplicationInputManual}
-        key={replType}
-        component="button"
-        id={replType}
-        data-test="replication-dropdown-item"
-        onClick={() => setReplication(replType)}
-      >
-        {replType}
-      </DropdownItem>
-    )
-  );
+      dispatch({
+        type: DRPolicyActionType.SET_IS_REPLICATION_INPUT_MANUAL,
+        payload: !isReplicationAutoDetectable,
+      });
+      dispatch({
+        type: DRPolicyActionType.SET_REPLICATION,
+        payload:
+          isReplicationAutoDetectable && cephFSIDs.size <= 1
+            ? REPLICATION_TYPE(t)['sync']
+            : REPLICATION_TYPE(t)['async'],
+      });
+    } else {
+      dispatch({
+        type: DRPolicyActionType.SET_IS_ODF_DETECTED,
+        payload: false,
+      });
+      dispatch({
+        type: DRPolicyActionType.SET_IS_REPLICATION_INPUT_MANUAL,
+        payload: false,
+      });
+      dispatch({
+        type: DRPolicyActionType.SET_REPLICATION,
+        payload: '',
+      });
+    }
+  }, [clustersData, t, dispatch]);
 
   const onCreate = () => {
+    const promises: Promise<K8sResourceKind>[] = [];
     const peerNames = clustersData?.map((cluster) => cluster?.name) ?? [];
     const mirrorPeer: MirrorPeerKind =
       fetchMirrorPeer(mirrorPeers, peerNames) ?? {};
-    const promises: Promise<K8sResourceKind>[] = [];
-
     if (Object.keys(mirrorPeer).length > 0) {
       // MirrorPeer update
-      if (replication === REPLICATION_TYPE(t).async) {
+      if (state.replication === REPLICATION_TYPE(t).async) {
         const patch = [
           {
             op: 'replace',
             path: '/spec/schedulingIntervals',
             value: [
-              ...new Set([...mirrorPeer?.spec?.schedulingIntervals, syncTime]),
+              ...new Set([
+                ...mirrorPeer?.spec?.schedulingIntervals,
+                state.syncTime,
+              ]),
             ],
           },
         ];
@@ -377,13 +352,16 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
         metadata: { generateName: 'mirror-peer-' },
         spec: {
           manageS3: true,
-          type: replication === REPLICATION_TYPE(t)['async'] ? 'async' : 'sync',
+          type:
+            state.replication === REPLICATION_TYPE(t).async ? 'async' : 'sync',
           schedulingIntervals:
-            replication === REPLICATION_TYPE(t)['async'] ? [syncTime] : [],
+            state.replication === REPLICATION_TYPE(t).async
+              ? [state.syncTime]
+              : [],
           items: clustersData?.map((cluster) => ({
             clusterName: cluster?.name,
             storageClusterRef: {
-              name: cluster.storageClusterName,
+              name: cluster.cephClusterName,
               namespace: CEPH_STORAGE_NAMESPACE,
             },
           })),
@@ -402,10 +380,12 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
     const payload: DRPolicyKind = {
       apiVersion: getAPIVersionForModel(DRPolicyModel),
       kind: DRPolicyModel.kind,
-      metadata: { name: policyName },
+      metadata: { name: state.policyName },
       spec: {
         schedulingInterval:
-          replication === REPLICATION_TYPE(t)['async'] ? syncTime : '0m',
+          state.replication === REPLICATION_TYPE(t)['async']
+            ? state.syncTime
+            : '0m',
         drClusters: peerNames,
       },
     };
@@ -416,6 +396,7 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
         cluster: HUB_CLUSTER_NAME,
       })
     );
+
     Promise.all(promises)
       .then(() => {
         const { apiGroup, apiVersion, kind } = DRPolicyModel;
@@ -423,8 +404,24 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
           referenceForGroupVersionKind(apiGroup)(apiVersion)(kind);
         history.push(url.replace(`${drPolicyKind}/~new`, ''));
       })
-      .catch((error) => setError(error?.message));
+      .catch((error) =>
+        dispatch({
+          type: DRPolicyActionType.SET_ERROR_MESSAGE,
+          payload: error?.message,
+        })
+      );
   };
+
+  const setPolicyName = (strVal: string) =>
+    dispatch({
+      type: DRPolicyActionType.SET_POLICY_NAME,
+      payload: strVal,
+    });
+
+  const isDRPolicyInputsAreValid = () =>
+    !!state.policyName &&
+    Object.keys(state.selectedClusters)?.length === MAX_ALLOWED_CLUSTERS &&
+    state.isODFDetected;
 
   return (
     <div>
@@ -442,7 +439,7 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
           <TextInput
             data-test="policy-name-text"
             id="policy-name"
-            value={policyName}
+            value={state.policyName}
             type="text"
             onChange={setPolicyName}
             isRequired
@@ -456,10 +453,7 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
           )}
           isHelperTextBeforeField
         >
-          <SelectClusterList
-            selectedClusters={selectedClusters}
-            setSelectedClusters={setSelectedClusters}
-          />
+          <SelectClusterList state={state} dispatch={dispatch} />
         </FormGroup>
         <FormGroup fieldId="policy-name">
           <Alert
@@ -479,75 +473,14 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
                 key={c.name}
                 id={i + 1}
                 cluster={c}
-                setSelectedClusters={setSelectedClusters}
+                managedClusterView={state.clusterToManagedClusterView?.[c.name]}
+                dispatch={dispatch}
               />
             ))}
           </FormGroup>
         )}
-        {isODFDetected ? (
-          <>
-            {replication && (
-              <FormGroup
-                fieldId="replication-policy"
-                label={t('Replication policy')}
-              >
-                <Dropdown
-                  data-test="replication-dropdown"
-                  className="mco-create-data-policy__dropdown"
-                  onSelect={() => setReplicationOpen(false)}
-                  toggle={
-                    <DropdownToggle
-                      data-test="replication-dropdown-toggle"
-                      isDisabled={!isReplicationInputManual}
-                      className="mco-create-data-policy__dropdown"
-                      id="toggle-id"
-                      onToggle={() => setReplicationOpen(!isReplicationOpen)}
-                      toggleIndicator={CaretDownIcon}
-                    >
-                      {replication}
-                    </DropdownToggle>
-                  }
-                  isOpen={isReplicationOpen}
-                  dropdownItems={replicationDropdownItems}
-                />
-              </FormGroup>
-            )}
-            {replication === REPLICATION_TYPE(t)['async'] && (
-              <FormGroup fieldId="sync-schedule" label={t('Sync schedule')}>
-                <SyncSchedule schedule={syncTime} setSchedule={setSyncTime} />
-              </FormGroup>
-            )}
-          </>
-        ) : (
-          clustersData?.map((c) =>
-            c.csvLoaded && !c?.isValidODFVersion ? (
-              <Alert
-                data-test="odf-not-found-alert"
-                className="co-alert mco-create-data-policy__alert"
-                title={t(
-                  '{{ name }} has invalid ODF version, update to ODF {{ version }} or latest version to enable DR protection',
-                  { name: c?.name, version: ODF_MINIMUM_SUPPORT }
-                )}
-                variant={AlertVariant.danger}
-                isInline
-              />
-            ) : (
-              c?.storageSystemName === '' &&
-              c.storageSystemLoaded && (
-                <Alert
-                  data-test="rhcs-not-found-alert"
-                  className="co-alert mco-create-data-policy__alert"
-                  title={t('{{ name }} is not connected to RHCS', {
-                    name: c?.name,
-                  })}
-                  variant={AlertVariant.danger}
-                  isInline
-                />
-              )
-            )
-          )
-        )}
-        {errorMessage && (
+        <DRReplicationType state={state} dispatch={dispatch} />
+        {state.errorMessage && (
           <FormGroup fieldId="error-message">
             <Alert
               className="co-alert mco-create-data-policy__alert"
@@ -555,7 +488,7 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
               variant="danger"
               isInline
             >
-              {errorMessage}
+              {state.errorMessage}
             </Alert>
           </FormGroup>
         )}
@@ -564,11 +497,7 @@ export const CreateDRPolicy: React.FC<ReRouteResourceProps> = ({
             data-test="create-button"
             variant={ButtonVariant.primary}
             onClick={onCreate}
-            isDisabled={
-              !policyName ||
-              Object.keys(selectedClusters)?.length !== MAX_ALLOWED_CLUSTERS ||
-              !isODFDetected
-            }
+            isDisabled={!isDRPolicyInputsAreValid}
           >
             {t('Create')}
           </Button>
