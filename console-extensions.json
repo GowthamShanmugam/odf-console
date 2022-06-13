@@ -449,5 +449,14 @@
         "$codeRef": "editPage.default"
       }
     }
+  },
+  {
+    "type": "acm.application/action",
+    "properties": {
+      "label": "Apply Policy",
+      "component": {
+        "$codeRef": "demoModal.default"
+      }
+    }
   }
 ]
