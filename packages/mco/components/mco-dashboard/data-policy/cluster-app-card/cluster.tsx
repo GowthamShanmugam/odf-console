@@ -12,12 +12,15 @@ import {
   SLA_STATUS,
 } from '@odf/mco/constants';
 import { MirrorPeerModel } from '@odf/mco/models';
-import { DrClusterAppsMap, MirrorPeerKind } from '@odf/mco/types';
+import {
+  DrClusterAppsMap,
+  MirrorPeerKind,
+  PlacementInfo,
+  ProtectedPVCData,
+} from '@odf/mco/types';
 import {
   getSLAStatus,
   getManagedClusterAvailableCondition,
-  getRemoteNSFromAppSet,
-  getProtectedPVCsFromDRPC,
 } from '@odf/mco/utils';
 import HealthItem from '@odf/shared/dashboards/status-card/HealthItem';
 import { healthStateMapping } from '@odf/shared/dashboards/status-card/states';
@@ -153,16 +156,18 @@ export const PeerConnectionSection: React.FC<PeerConnectionSectionProps> = ({
 
   const peerConnectedCount = React.useMemo(() => {
     if (mirrorPeersLoaded && !mirrorPeersError) {
-      mirrorPeers.reduce((acc, mirrorPeer: MirrorPeerKind) => {
-        if (
-          !!mirrorPeer?.spec?.items?.find(
-            (item) => item?.clusterName === clusterName
-          )
-        ) {
-          return acc + 1;
-        }
-        return acc;
-      }, 0) || 0;
+      return (
+        mirrorPeers.reduce((acc, mirrorPeer: MirrorPeerKind) => {
+          if (
+            !!mirrorPeer?.spec?.items?.find(
+              (item) => item?.clusterName === clusterName
+            )
+          ) {
+            return acc + 1;
+          }
+          return acc;
+        }, 0) || 0
+      );
     }
     return 0;
   }, [clusterName, mirrorPeers, mirrorPeersLoaded, mirrorPeersError]);
@@ -183,7 +188,7 @@ export const PeerConnectionSection: React.FC<PeerConnectionSectionProps> = ({
 export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
   clusterResources,
   clusterName,
-  pvcSLAData,
+  lastSyncTimeData,
 }) => {
   const { t } = useCustomTranslation();
 
@@ -191,24 +196,20 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
     () =>
       clusterResources[clusterName]?.protectedAppSets?.reduce(
         (acc, protectedAppSetsMap) => {
-          const remoteNS: string = getRemoteNSFromAppSet(
-            protectedAppSetsMap?.application
-          );
-          const pvcsList: string[] = getProtectedPVCsFromDRPC(
-            protectedAppSetsMap?.drPlacementControl
-          );
-          const hasIssue = !!pvcSLAData?.data?.result?.find(
+          const placementInfo: PlacementInfo =
+            protectedAppSetsMap?.placementInfo?.[0];
+          const hasIssue = !!lastSyncTimeData?.data?.result?.find(
             (item: PrometheusResult) =>
-              /** FIX THIS */
-              item?.metric?.pvc_namespace === remoteNS &&
-              getSLAStatus(item)[0] !== SLA_STATUS.HEALTHY &&
-              pvcsList.includes(item?.metric?.pvc_name)
+              item?.metric?.namesapce === placementInfo?.drpcNamespace &&
+              item?.metric?.name === placementInfo?.drpcNamespace &&
+              getSLAStatus(item?.value[1], placementInfo?.syncInterval)[0] !==
+                SLA_STATUS.HEALTHY
           );
           return hasIssue ? acc + 1 : acc;
         },
         0
       ) || 0,
-    [clusterResources, clusterName, pvcSLAData]
+    [clusterResources, clusterName, lastSyncTimeData]
   );
 
   const totalAppSetsCount = clusterResources[clusterName]?.totalAppSetsCount;
@@ -216,7 +217,9 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
     clusterResources[clusterName]?.protectedAppSets?.length;
   return (
     <div className="mco-dashboard__contentColumn">
-      <div className="mco-dashboard__title">{totalAppSetsCount || 0}</div>
+      <div className="mco-dashboard__title mco-dashboard__subtitle--size">
+        {totalAppSetsCount || 0}
+      </div>
       <div className="mco-dashboard__title">{t('Total applications')}</div>
       <div className="text-muted">
         {t(' {{ protectedAppSetsCount }} protected apps', {
@@ -234,7 +237,7 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
 };
 
 export const PVCsSection: React.FC<PVCsSectionProps> = ({
-  clusterResources,
+  protectedPVCData,
   clusterName,
 }) => {
   const { t } = useCustomTranslation();
@@ -254,20 +257,11 @@ export const PVCsSection: React.FC<PVCsSectionProps> = ({
         (item: PrometheusResult) => item?.metric?.cluster === clusterName
       )?.value[1];
     }
-    let protectedPVCsCount =
-      clusterResources[clusterName]?.protectedAppSets?.reduce(
-        (acc, protectedAppSetsMap) => {
-          const pvcsList: string[] = getProtectedPVCsFromDRPC(
-            protectedAppSetsMap?.drPlacementControl
-          );
-          return !!pvcsList?.length ? acc + pvcsList.length : acc;
-        },
-        0
-      ) || 0;
+    let protectedPVCsCount = protectedPVCData?.length || 0;
 
     return [totalPVCsCount, protectedPVCsCount];
   }, [
-    clusterResources,
+    protectedPVCData,
     clusterName,
     pvcsCount,
     pvcsCountError,
@@ -276,7 +270,9 @@ export const PVCsSection: React.FC<PVCsSectionProps> = ({
 
   return (
     <div className="mco-dashboard__contentColumn">
-      <div className="mco-dashboard__title">{totalPVCsCount || 0}</div>
+      <div className="mco-dashboard__title mco-dashboard__subtitle--size">
+        {totalPVCsCount || 0}
+      </div>
       <div className="mco-dashboard__title">{t('PVCs')}</div>
       <div className="text-muted">
         {t(' {{ protectedPVCsCount }} protected', {
@@ -309,10 +305,10 @@ type PeerConnectionSectionProps = {
 type ApplicationsSectionProps = {
   clusterResources: DrClusterAppsMap;
   clusterName: string;
-  pvcSLAData: PrometheusResponse;
+  lastSyncTimeData: PrometheusResponse;
 };
 
 type PVCsSectionProps = {
-  clusterResources: DrClusterAppsMap;
+  protectedPVCData: ProtectedPVCData[];
   clusterName: string;
 };

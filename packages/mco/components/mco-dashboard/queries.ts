@@ -16,16 +16,12 @@ export enum StorageDashboard {
 // "recording_rules" added in "observability-metrics-custom-allowlist" ConfigMap
 export const TOTAL_PVC_COUNT_QUERY = 'count_persistentvolumeclaim_total';
 
-/** FIX THIS */
-export const PVC_SLA_QUERY = 'dr_pvc_sla';
-export const getPvcSlaPerClusterQuery = (clusterName: string) =>
-  `${PVC_SLA_QUERY}{cluster=~'${clusterName}'}`;
-export const getPvcSlaPerPVCQuery = (
-  clusterName: string,
-  remoteNS: string,
-  pvcName: string
+export const LAST_SYNC_TIME_QUERY = 'ramen_last_sync_timestamp_seconds';
+export const getLastSyncTimeDRPCQuery = (
+  drpcNamespace: string,
+  drpcName: string
 ) =>
-  `${PVC_SLA_QUERY}{cluster=~'${clusterName}',pvc_namespace=~'${remoteNS}',pvc_name=~'${pvcName}'}`;
+  `${LAST_SYNC_TIME_QUERY}{resource_type="drpc",name="'${drpcName}'",namespace="'${drpcNamespace}'"}`;
 
 export const CAPACITY_QUERIES = {
   [StorageDashboard.TOTAL_CAPACITY_FILE_BLOCK]: `(label_replace(odf_system_map{target_namespace="openshift-storage"} , "managedBy", "$1", "target_name", "(.*)"))  * on (namespace, managedBy, cluster) group_right(storage_system) ${TOTAL_CAPACITY_FILE_BLOCK_METRIC}`,

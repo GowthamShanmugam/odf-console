@@ -57,6 +57,7 @@ export const UtilizationItem: React.FC<UtilizationItemProps> = React.memo(
       limit,
       requested,
       trimSecondsXMutator,
+      null,
       t
     );
     const [utilizationData, limitData, requestedData] = data;

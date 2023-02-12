@@ -53,3 +53,15 @@ export enum DRPC_STATUS {
   FailingOver = 'FailingOver',
   Relocated = 'Relocated',
 }
+
+export enum DR_REPLICATION_STATE {
+  PrimaryState = 'Primary',
+  SecondaryState = 'Secondary',
+  UnknownState = 'Unknown',
+}
+
+export enum TIME_UNITS {
+  Minutes = 'm',
+  Hours = 's',
+  Days = 'd',
+}

@@ -1,5 +1,10 @@
 import * as React from 'react';
 import {
+  daysToMilliseconds,
+  hourToMilliseconds,
+  minutesToMilliseconds,
+} from '@odf/shared/details-page/datetime';
+import {
   getLabel,
   hasLabel,
   getName,
@@ -9,7 +14,6 @@ import { ApplicationKind } from '@odf/shared/types/k8s';
 import {
   K8sResourceCommon,
   ObjectReference,
-  PrometheusResult,
   GreenCheckCircleIcon,
 } from '@openshift-console/dynamic-plugin-sdk';
 import {
@@ -19,12 +23,13 @@ import {
 import { TFunction } from 'i18next';
 import { InProgressIcon, UnknownIcon } from '@patternfly/react-icons';
 import { SLA_STATUS, DR_SECHEDULER_NAME, DRPC_STATUS } from '../constants';
-import { REPLICATION_TYPE } from '../constants/disaster-recovery';
+import { REPLICATION_TYPE, TIME_UNITS } from '../constants/disaster-recovery';
 import { DisasterRecoveryFormatted } from '../hooks';
 import {
   ACMPlacementModel,
   ACMPlacementRuleModel,
   DRPolicyModel,
+  DRVolumeReplicationGroup,
 } from '../models';
 import {
   ACMSubscriptionKind,
@@ -34,6 +39,10 @@ import {
   DRClusterKind,
   ACMManagedClusterKind,
   ArgoApplicationSetKind,
+  ACMManagedClusterViewKind,
+  DRVolumeReplicationGroupKind,
+  ProtectedPVCData,
+  ProtectedAppSetsMap,
 } from '../types';
 
 export type PlacementRuleMap = {
@@ -301,20 +310,36 @@ export const matchClusters = (
     decisionClusters?.includes(drClusterName)
   );
 
+const getScheduledSynInterval = (scheduledSyncInterval: string) => {
+  const regex = new RegExp(
+    `([0-9]+)|([${TIME_UNITS.Days}|${TIME_UNITS.Hours}|${TIME_UNITS.Minutes}]+)`,
+    'g'
+  );
+  const splittedArray = scheduledSyncInterval?.match(regex);
+  const interval = Number(splittedArray?.[0] || 0);
+
+  const unit = splittedArray?.[1] || 's';
+  return (
+    (unit === TIME_UNITS.Days && daysToMilliseconds(interval)) ||
+    (unit === TIME_UNITS.Hours && hourToMilliseconds(interval)) ||
+    (unit === TIME_UNITS.Minutes && minutesToMilliseconds(interval))
+  );
+};
+
 const THRESHOLD = 2;
-export const getSLAStatus = (item: PrometheusResult): [SLA_STATUS, number] => {
+
+export const getSLAStatus = (
+  slaTaken: string,
+  scheduledSyncInterval: string
+): [SLA_STATUS, number] => {
+  // milli seconds
   const currentTime = new Date().getTime();
-  const lastSnapshotTime = new Date(item?.value[1]).getTime();
+  const lastSnapshotTime = new Date(slaTaken).getTime();
   const timeTaken = currentTime - lastSnapshotTime;
-  /**
-   * FIX THIS
-   * "timeTaken" is in milliseconds, need to add a function to convert syncInterval to milliseconds as well
-   * current usage of "Number()"" is wrong, added it as a placeholder only
-   * */
-  const syncInterval = Number(item?.metric?.sync_interval);
-  const slaDiff = timeTaken / syncInterval || 0;
+  const scheduledSyncTime = getScheduledSynInterval(scheduledSyncInterval);
+  const slaDiff = timeTaken / scheduledSyncTime || 0;
   if (slaDiff >= THRESHOLD) return [SLA_STATUS.CRITICAL, slaDiff];
-  else if (slaDiff > syncInterval && slaDiff < THRESHOLD)
+  else if (slaDiff > scheduledSyncTime && slaDiff < THRESHOLD)
     return [SLA_STATUS.WARNING, slaDiff];
   else return [SLA_STATUS.HEALTHY, slaDiff];
 };
@@ -326,8 +351,7 @@ export const getRemoteNSFromAppSet = (
 export const getProtectedPVCsFromDRPC = (
   drpc: DRPlacementControlKind
 ): string[] =>
-  drpc?.status?.resourceConditions?.properties?.resourceMeta?.properties
-    ?.protectedpvcs?.items || [];
+  drpc?.status?.resourceConditions?.resourceMeta?.protectedpvcs || [];
 
 export const getCurrentStatus = (drpcList: DRPlacementControlKind[]): string =>
   drpcList.reduce((prevStatus, drpc) => {
@@ -381,3 +405,49 @@ export const getDRStatus = ({
       };
   }
 };
+
+const filterMulticlusterView = (mcvs: ACMManagedClusterViewKind[]) =>
+  mcvs?.filter(
+    (mcv) => mcv?.spec?.scope?.resource === DRVolumeReplicationGroup.kind
+  );
+
+export const getProtectedPVCFromVRG = (
+  mcvs: ACMManagedClusterViewKind[]
+): ProtectedPVCData[] => {
+  const filteredMCVs = filterMulticlusterView(mcvs);
+  return filteredMCVs?.reduce((acc, mcv) => {
+    const drpcName =
+      mcv?.metadata?.annotations?.[
+        'drplacementcontrol.ramendr.openshift.io/drpc-name'
+      ];
+    const drpcNamespace =
+      mcv?.metadata?.annotations?.[
+        'drplacementcontrol.ramendr.openshift.io/drpc-namespace'
+      ];
+    const vrg = mcv?.status?.result as DRVolumeReplicationGroupKind;
+    const pvcInfo = vrg?.status?.protectedPVCs?.map((pvc) => ({
+      drpcName,
+      drpcNamespace,
+      pvcName: pvc?.name,
+      pvcNamespace: getNamespace(vrg),
+      lastSyncTime: pvc?.lastSyncTime,
+      schedulingInterval: vrg?.spec?.async?.schedulingInterval,
+    }));
+    return !!pvcInfo?.length ? [...acc, ...pvcInfo] : acc;
+  }, []);
+};
+
+export const filterPVCDataUsingAppsets = (
+  pvcsData: ProtectedPVCData[],
+  protectedAppsets: ProtectedAppSetsMap[]
+) =>
+  pvcsData?.filter(
+    (pvcData) =>
+      !!protectedAppsets?.find((appSet) => {
+        const placementInfo = appSet?.placementInfo?.[0];
+        const result =
+          placementInfo?.drpcName === pvcData?.drpcName &&
+          placementInfo?.drpcNamespace === pvcData?.drpcNamespace;
+        return result;
+      })
+  );
