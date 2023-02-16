@@ -62,6 +62,6 @@ export enum DR_REPLICATION_STATE {
 
 export enum TIME_UNITS {
   Minutes = 'm',
-  Hours = 's',
+  Hours = 'h',
   Days = 'd',
 }

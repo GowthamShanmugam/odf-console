@@ -63,12 +63,13 @@ const getClustersOperatorHealth = (
   csvManagedData: PrometheusResponse,
   drClusterAppsMap: DrClusterAppsMap
 ) => {
+  const drClusters = Object.keys(drClusterAppsMap);
   const clusterWiseHealth: ClusterWiseHealth =
     csvManagedData?.data?.result?.reduce((acc, item) => {
       const cluster = item?.metric.cluster;
       let count = acc?.[cluster] || 0;
       acc =
-        drClusterAppsMap.hasOwnProperty(cluster) &&
+        drClusters.includes(cluster) &&
         !!clusterOperators.find((operator: string) =>
           item?.metric.name.startsWith(operator)
         )
@@ -76,7 +77,7 @@ const getClustersOperatorHealth = (
           : acc;
       return acc;
     }, {});
-  return Object.keys(clusterWiseHealth)?.every(
+  return drClusters?.every(
     (cluster) => clusterWiseHealth?.[cluster] === clusterOperators.length
   )
     ? HealthState.OK

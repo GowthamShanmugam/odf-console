@@ -1,8 +1,8 @@
 import * as React from 'react';
 import {
-  daysToMilliseconds,
-  hourToMilliseconds,
-  minutesToMilliseconds,
+  daysToSeconds,
+  hoursToSeconds,
+  minutesToSeconds,
 } from '@odf/shared/details-page/datetime';
 import {
   getLabel,
@@ -310,36 +310,44 @@ export const matchClusters = (
     decisionClusters?.includes(drClusterName)
   );
 
-const getScheduledSynInterval = (scheduledSyncInterval: string) => {
+export const parseSyncInterval = (
+  scheduledSyncInterval: string
+): [TIME_UNITS, number] => {
   const regex = new RegExp(
     `([0-9]+)|([${TIME_UNITS.Days}|${TIME_UNITS.Hours}|${TIME_UNITS.Minutes}]+)`,
     'g'
   );
   const splittedArray = scheduledSyncInterval?.match(regex);
   const interval = Number(splittedArray?.[0] || 0);
+  const unit = (splittedArray?.[1] || TIME_UNITS.Minutes) as TIME_UNITS;
+  return [unit, interval];
+};
 
-  const unit = splittedArray?.[1] || 's';
-  return (
-    (unit === TIME_UNITS.Days && daysToMilliseconds(interval)) ||
-    (unit === TIME_UNITS.Hours && hourToMilliseconds(interval)) ||
-    (unit === TIME_UNITS.Minutes && minutesToMilliseconds(interval))
-  );
+export const convertSyncIntervalToSeconds = (
+  syncInterval: string
+): [number, TIME_UNITS] => {
+  const [unit, scheduledSyncTime] = parseSyncInterval(syncInterval);
+  const threshold =
+    (unit === TIME_UNITS.Days && daysToSeconds(scheduledSyncTime)) ||
+    (unit === TIME_UNITS.Hours && hoursToSeconds(scheduledSyncTime)) ||
+    (unit === TIME_UNITS.Minutes && minutesToSeconds(scheduledSyncTime));
+  return [threshold, unit];
 };
 
 const THRESHOLD = 2;
 
 export const getSLAStatus = (
-  slaTaken: string,
+  slaTakenInSeconds: number,
   scheduledSyncInterval: string
 ): [SLA_STATUS, number] => {
-  // milli seconds
-  const currentTime = new Date().getTime();
-  const lastSnapshotTime = new Date(slaTaken).getTime();
-  const timeTaken = currentTime - lastSnapshotTime;
-  const scheduledSyncTime = getScheduledSynInterval(scheduledSyncInterval);
-  const slaDiff = timeTaken / scheduledSyncTime || 0;
+  const currentTimeInSeconds = new Date().getTime() / 1000;
+  const timeTakenInSeconds = currentTimeInSeconds - slaTakenInSeconds;
+  const [syncIntervalInSeconds] = convertSyncIntervalToSeconds(
+    scheduledSyncInterval
+  );
+  const slaDiff = timeTakenInSeconds / syncIntervalInSeconds || 0;
   if (slaDiff >= THRESHOLD) return [SLA_STATUS.CRITICAL, slaDiff];
-  else if (slaDiff > scheduledSyncTime && slaDiff < THRESHOLD)
+  else if (slaDiff > syncIntervalInSeconds && slaDiff < THRESHOLD)
     return [SLA_STATUS.WARNING, slaDiff];
   else return [SLA_STATUS.HEALTHY, slaDiff];
 };

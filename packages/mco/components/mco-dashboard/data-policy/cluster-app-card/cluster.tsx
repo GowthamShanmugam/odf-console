@@ -202,8 +202,10 @@ export const ApplicationsSection: React.FC<ApplicationsSectionProps> = ({
             (item: PrometheusResult) =>
               item?.metric?.namesapce === placementInfo?.drpcNamespace &&
               item?.metric?.name === placementInfo?.drpcNamespace &&
-              getSLAStatus(item?.value[1], placementInfo?.syncInterval)[0] !==
-                SLA_STATUS.HEALTHY
+              getSLAStatus(
+                parseInt(item?.value[1], 10) || 0,
+                placementInfo?.syncInterval
+              )[0] !== SLA_STATUS.HEALTHY
           );
           return hasIssue ? acc + 1 : acc;
         },

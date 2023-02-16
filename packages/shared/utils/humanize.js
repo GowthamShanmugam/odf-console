@@ -49,6 +49,16 @@ const TYPES = {
     space: true,
     divisor: 1000,
   },
+  time: {
+    units: ['s', 'm', 'h'],
+    space: true,
+    divisor: 60,
+  },
+  day: {
+    units: ['', 'd'],
+    space: true,
+    divisor: 24,
+  },
 };
 
 export const getType = (name) => {
@@ -232,6 +242,10 @@ export const humanizeNumberSI = (v, initialUnit, preferredUnit) =>
   humanize(v, 'SI', true, initialUnit, preferredUnit);
 export const humanizeSeconds = (v, initialUnit, preferredUnit) =>
   humanize(v, 'seconds', true, initialUnit, preferredUnit);
+export const humanizeTime = (v, initialUnit, preferredUnit) =>
+  humanize(v, 'time', true, initialUnit, preferredUnit);
+export const humanizeDay = (v, initialUnit, preferredUnit) =>
+  humanize(v, 'day', true, initialUnit, preferredUnit);
 export const humanizeCpuCores = (v) => {
   const value = v < 1 ? round(v * 1000) : v;
   const unit = v < 1 ? 'm' : '';

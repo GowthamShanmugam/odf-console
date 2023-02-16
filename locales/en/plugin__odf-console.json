@@ -40,6 +40,7 @@
   "Empty page logo": "Empty page logo",
   "You are not authorized to complete this action. See your cluster administrator for role-based access control information.": "You are not authorized to complete this action. See your cluster administrator for role-based access control information.",
   "Alerts": "Alerts",
+  "scheduled SLA": "scheduled SLA",
   "{{ currentStatus }} to {{ preferredCluster }}": "{{ currentStatus }} to {{ preferredCluster }}",
   "{{ currentStatus }} to {{ failoverCluster }}": "{{ currentStatus }} to {{ failoverCluster }}",
   "Unknown": "Unknown",

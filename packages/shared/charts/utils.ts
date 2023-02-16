@@ -95,12 +95,11 @@ export const mapLimitsRequests = (
   limit: PrometheusResponse,
   requested: PrometheusResponse,
   xMutator?: XMutator,
-  description?: string,
   t?: any
 ): { data: DataPoint[][]; chartStyle: object[] } => {
   const utilizationData = getRangeVectorStats(
     utilization,
-    description || 'usage',
+    'usage',
     null,
     xMutator
   );

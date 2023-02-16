@@ -12,6 +12,7 @@ import {
   PlacementInfo,
 } from '@odf/mco/types';
 import { getSLAStatus } from '@odf/mco/utils';
+import { dateToSeconds } from '@odf/shared/details-page/datetime';
 import { URL_POLL_DEFAULT_DELAY } from '@odf/shared/hooks/custom-prometheus-poll/use-url-poll';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
 import {
@@ -63,11 +64,17 @@ export const VolumeSummarySection: React.FC<VolumeSummarySectionProps> = ({
         pvcData?.drpcName === placementInfo?.drpcName &&
           pvcData?.drpcNamespace === placementInfo?.drpcNamespace &&
           slaStatus[
-            getSLAStatus(pvcData?.lastSyncTime, pvcData?.schedulingInterval)[0]
+            getSLAStatus(
+              dateToSeconds(pvcData?.lastSyncTime),
+              pvcData?.schedulingInterval
+            )[0]
           ]++;
       } else {
         slaStatus[
-          getSLAStatus(pvcData?.lastSyncTime, pvcData?.schedulingInterval)[0]
+          getSLAStatus(
+            dateToSeconds(pvcData?.lastSyncTime),
+            pvcData?.schedulingInterval
+          )[0]
         ]++;
       }
     });

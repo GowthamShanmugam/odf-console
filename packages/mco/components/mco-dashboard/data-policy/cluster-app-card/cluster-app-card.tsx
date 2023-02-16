@@ -203,24 +203,20 @@ export const ClusterAppCard: React.FC = () => {
             </div>
           </CardHeader>
           <CardBody>
-            {!!drClusterAppsMap?.[cluster]?.protectedAppSets?.length ? (
-              !appSet.namespace && appSet.name === ALL_APPS ? (
-                <ClusterWiseCard
-                  clusterName={cluster}
-                  lastSyncTimeData={lastSyncTimeData}
-                  protectedPVCData={protectedPVCData}
-                  csvData={csvData}
-                  clusterResources={drClusterAppsMap}
-                />
-              ) : (
-                <AppWiseCard
-                  lastSyncTimeData={lastSyncTimeData}
-                  protectedPVCData={protectedPVCData}
-                  selectedAppSet={selectedAppSet}
-                />
-              )
+            {!appSet.namespace && appSet.name === ALL_APPS ? (
+              <ClusterWiseCard
+                clusterName={cluster}
+                lastSyncTimeData={lastSyncTimeData}
+                protectedPVCData={protectedPVCData}
+                csvData={csvData}
+                clusterResources={drClusterAppsMap}
+              />
             ) : (
-              <DataUnavailableError />
+              <AppWiseCard
+                lastSyncTimeData={lastSyncTimeData}
+                protectedPVCData={protectedPVCData}
+                selectedAppSet={selectedAppSet}
+              />
             )}
           </CardBody>
         </>

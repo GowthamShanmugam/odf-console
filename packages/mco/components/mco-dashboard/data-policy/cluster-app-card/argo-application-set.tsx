@@ -8,50 +8,101 @@ import {
   DRPC_STATUS,
   ACM_ENDPOINT,
   HUB_CLUSTER_NAME,
+  TIME_UNITS,
 } from '@odf/mco/constants';
 import {
   PlacementInfo,
   ProtectedAppSetsMap,
   ProtectedPVCData,
 } from '@odf/mco/types';
-import { getSLAStatus, getDRStatus } from '@odf/mco/utils';
-import { mapLimitsRequests } from '@odf/shared/charts';
+import {
+  getSLAStatus,
+  getDRStatus,
+  convertSyncIntervalToSeconds,
+} from '@odf/mco/utils';
+import { defaultYMutator } from '@odf/shared/charts';
 import { AreaChart } from '@odf/shared/dashboards/utilization-card/area-chart';
 import { trimSecondsXMutator } from '@odf/shared/dashboards/utilization-card/utilization-item';
+import { dateToSeconds } from '@odf/shared/details-page/datetime';
 import { useCustomPrometheusPoll } from '@odf/shared/hooks/custom-prometheus-poll';
 import { URL_POLL_DEFAULT_DELAY } from '@odf/shared/hooks/custom-prometheus-poll/use-url-poll';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
-import {
-  humanizeSeconds,
-  secondsToNanoSeconds,
-  DataPoint,
-} from '@odf/shared/utils';
+import { humanizeTime, humanizeDay, DataPoint } from '@odf/shared/utils';
 import {
   PrometheusResponse,
   PrometheusResult,
-  Humanize,
 } from '@openshift-console/dynamic-plugin-sdk';
+import { UtilizationDurationDropdown } from '@openshift-console/dynamic-plugin-sdk-internal';
 import { useUtilizationDuration } from '@openshift-console/dynamic-plugin-sdk-internal';
 import { chart_color_orange_300 as thresholdColor } from '@patternfly/react-tokens/dist/js/chart_color_orange_300';
 import { TFunction } from 'i18next';
 import { getLastSyncTimeDRPCQuery } from '../../queries';
 
-const humanizeSLA: Humanize = (value) =>
-  humanizeSeconds(secondsToNanoSeconds(value), null, 's');
+const humanizeMinutesSLA = (value) => {
+  const val = Number(value);
+  return humanizeTime(val, 's', 'm');
+};
 
-const getThresholdData = (data: ChartData, syncInterval: string): ChartData => {
-  if (!!data?.length) {
-    return data?.map((r) => {
-      return r?.map(
-        (dataPoint) =>
-          ({
-            x: dataPoint.x,
-            y: Number(syncInterval) || 0,
-          } as DataPoint<string | number | Date>)
-      );
-    });
+const humanizeHourSLA = (value) => {
+  const val = Number(value);
+  return humanizeTime(val, 's', 'h');
+};
+
+const humanizeDaysSLA = (value) => {
+  return humanizeDay(humanizeHourSLA(value).value, null, 'd');
+};
+
+export const getRangeVectorStats: CustomGetRangeStats = (
+  response,
+  description,
+  symbol,
+  threshold
+) => {
+  return (
+    response?.data?.result?.map((r) => {
+      return r?.values?.map(([x, y]) => {
+        return {
+          x: trimSecondsXMutator(x),
+          y: threshold ? threshold : defaultYMutator(y),
+          description,
+          symbol,
+        } as DataPoint<Date>;
+      });
+    }) || []
+  );
+};
+
+export const mapLimitsRequests = (
+  utilization: PrometheusResponse,
+  threshold: number,
+  t?: any
+): { data: DataPoint[][]; chartStyle: object[] } => {
+  const utilizationData = getRangeVectorStats(utilization, 'actual SLA', null);
+  const data = utilizationData ? [...utilizationData] : [];
+  const chartStyle = [null];
+  if (threshold) {
+    const reqData = getRangeVectorStats(
+      utilization,
+      t('scheduled SLA'),
+      {
+        type: 'dash',
+        fill: thresholdColor.value,
+      },
+      threshold
+    );
+    data.push(...reqData);
+    if (reqData.length) {
+      chartStyle.push({
+        data: {
+          stroke: thresholdColor.value,
+          strokeDasharray: '3,3',
+          fillOpacity: 0,
+        },
+      });
+    }
   }
-  return [];
+
+  return { data, chartStyle };
 };
 
 const getCurrentActivity = (
@@ -100,7 +151,7 @@ export const ProtectedPVCsSection: React.FC<ProtectedPVCsSectionProps> = ({
           protectedPVC?.drpcName === placementInfo?.drpcName &&
           protectedPVC?.drpcNamespace === placementInfo?.drpcNamespace &&
           getSLAStatus(
-            protectedPVC?.lastSyncTime,
+            dateToSeconds(protectedPVC?.lastSyncTime),
             protectedPVC?.schedulingInterval
           )[0] !== SLA_STATUS.HEALTHY
         )
@@ -205,8 +256,10 @@ export const ReplicationHistorySection: React.FC<ReplicationHistorySectionProps>
   ({ selectedAppSet }) => {
     const { t } = useCustomTranslation();
     const { duration } = useUtilizationDuration();
-
     const placementInfo = selectedAppSet?.placementInfo?.[0];
+    const [thresholdInSeconds, unit] = convertSyncIntervalToSeconds(
+      placementInfo?.syncInterval
+    );
 
     const [pvcsSLARangeData, pvcsSLARangeError, pvcsSLARangeLoading] =
       useCustomPrometheusPoll({
@@ -220,33 +273,11 @@ export const ReplicationHistorySection: React.FC<ReplicationHistorySectionProps>
         cluster: HUB_CLUSTER_NAME,
       });
 
-    /**
-     * FIX THIS
-     * ToDo(Sanjal): Find a way to add more info to tooltip of the chart
-     * Also, update utils based upon unit of the data (sec, min etc)
-     */
     const { data, chartStyle } = mapLimitsRequests(
       pvcsSLARangeData,
-      null,
-      null,
-      trimSecondsXMutator,
-      'SLA',
+      thresholdInSeconds,
       t
     );
-    const thresholdData: ChartData = getThresholdData(
-      data,
-      placementInfo?.syncInterval
-    );
-    data.push(...thresholdData);
-    if (thresholdData.length) {
-      chartStyle.push({
-        data: {
-          stroke: thresholdColor.value,
-          strokeDasharray: '3,3',
-          fillOpacity: 0,
-        },
-      });
-    }
 
     return (
       <div className="mco-dashboard__contentColumn">
@@ -254,16 +285,20 @@ export const ReplicationHistorySection: React.FC<ReplicationHistorySectionProps>
           <div className="mco-dashboard__title mco-cluster-app__contentRow--flexStart">
             {t('Replication history')}
           </div>
+          <div className="mco-dashboard__contentRow mco-cluster-app__contentRow--flexEnd">
+            <UtilizationDurationDropdown />
+          </div>
         </div>
         <AreaChart
           data={data}
           loading={!pvcsSLARangeError && pvcsSLARangeLoading}
-          /** FIX THIS
-           * Assuming value from metric response is in sec
-           */
-          humanize={humanizeSLA}
           chartStyle={chartStyle}
           mainDataName="SLA"
+          humanize={
+            (unit === TIME_UNITS.Days && humanizeDaysSLA) ||
+            (unit === TIME_UNITS.Hours && humanizeHourSLA) ||
+            (unit === TIME_UNITS.Minutes && humanizeMinutesSLA)
+          }
         />
       </div>
     );
@@ -283,4 +318,9 @@ type ReplicationHistorySectionProps = {
   selectedAppSet: ProtectedAppSetsMap;
 };
 
-type ChartData = DataPoint<string | number | Date>[][];
+type CustomGetRangeStats = (
+  response: PrometheusResponse,
+  description?: string,
+  symbol?: { fill?: string; type?: string },
+  threshold?: Number
+) => DataPoint<Date>[][];
