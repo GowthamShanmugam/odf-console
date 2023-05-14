@@ -19,6 +19,9 @@ const getResources = () => ({
   drPlacementControls: getDRPlacementControlResourceObj(),
 });
 
+/**
+ * @deprecated use useDisasterRecoveryParser
+*/
 export const useDisasterRecoveryResourceWatch: UseDisasterRecoveryResourceWatch =
   (resource) => {
     const response = useK8sWatchResources<WatchResourceType>(

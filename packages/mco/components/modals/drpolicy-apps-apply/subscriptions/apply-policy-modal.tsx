@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { LoadingInline } from '@odf/shared/generic/Loading';
-import { useDeepCompareMemoize } from '@odf/shared/hooks/deep-compare-memoize';
 import { objectify } from '@odf/shared/modals/EditLabelModal';
 import {
   ModalBody,
@@ -35,6 +34,8 @@ import {
 } from '@patternfly/react-core';
 import { DR_SECHEDULER_NAME, HUB_CLUSTER_NAME } from '../../../../constants';
 import {
+  ACMPlacementDecisionModel,
+  ACMPlacementModel,
   ACMPlacementRuleModel,
   ACMSubscriptionModel,
   DRPlacementControlModel,
@@ -43,39 +44,24 @@ import {
 import {
   DRPolicyKind,
   ACMPlacementRuleKind,
-  ACMSubscriptionKind,
   DRPlacementControlKind,
   AppToPlacementRule,
+  ACMSubscriptionKind,
+  ACMPlacementKind,
+  ACMPlacementDecisionKind,
 } from '../../../../types';
 import {
   matchApplicationToSubscription,
-  getPlacementKind,
 } from '../../../../utils';
 import { ApplicationSelector } from './application-selector';
 import './apply-policy-modal.scss';
 import '../../../../style.scss';
+import { useSubscriptionAppParser } from 'packages/mco/hooks/subscription-parser';
+import { useDisasterRecoveryParser } from 'packages/mco/hooks/disaster-recovery-parser';
 
 type ApplyModalExtraProps = {
   resource: DRPolicyKind;
   resourceModel: K8sModel;
-};
-
-type ApplicationMap = {
-  [namespace in string]: {
-    [app in string]: ApplicationKind;
-  };
-};
-
-type SubcsriptionMap = {
-  [namespace in string]: {
-    [sub in string]: ACMSubscriptionKind;
-  };
-};
-
-type PlacementRuleMap = {
-  [namespace in string]: {
-    [plsRule in string]: ACMPlacementRuleKind;
-  };
 };
 
 const resources = {
@@ -93,6 +79,24 @@ const resources = {
   },
   placementRules: {
     kind: referenceForModel(ACMPlacementRuleModel),
+    namespaced: false,
+    isList: true,
+    cluster: HUB_CLUSTER_NAME,
+  },
+  placements: {
+    kind: referenceForModel(ACMPlacementModel),
+    namespaced: false,
+    isList: true,
+    cluster: HUB_CLUSTER_NAME,
+  },
+  placementDecisions: {
+    kind: referenceForModel(ACMPlacementDecisionModel),
+    namespaced: false,
+    isList: true,
+    cluster: HUB_CLUSTER_NAME,
+  },
+  drPlacementControls: {
+    kind: referenceForModel(DRPlacementControlModel),
     namespaced: false,
     isList: true,
     cluster: HUB_CLUSTER_NAME,
@@ -143,13 +147,6 @@ const clusterMatch = (
       managedClusterNames?.includes(decision?.clusterNamespace)
   ) || {};
 
-const appFilter = (application: ApplicationKind) =>
-  application?.spec?.componentKinds?.some(
-    (componentKind) =>
-      componentKind?.group === ACMSubscriptionModel?.apiGroup &&
-      componentKind?.kind === ACMSubscriptionModel?.kind
-  );
-
 const getSelectedPlacementRules = (
   selectedApps: TreeViewDataItem[]
 ): TreeViewDataItem[] => selectedApps.filter((app) => !app.children);
@@ -185,7 +182,6 @@ const ApplyDRPolicyModal: React.FC<CommonModalProps<ApplyModalExtraProps>> = (
     () => resource?.spec?.drClusters ?? [],
     [resource?.spec?.drClusters]
   );
-
   const [labels, setLabels] = React.useState<string[]>([]);
   const [isProtectAllPVCChecked, setProtectAllPVC] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -193,95 +189,31 @@ const ApplyDRPolicyModal: React.FC<CommonModalProps<ApplyModalExtraProps>> = (
   const [selectedApps, setSelectedApps] = React.useState<{
     checkedItems: TreeViewDataItem[];
   }>({ checkedItems: [] });
-  const [applicationMap, setApplicationMap] = React.useState<ApplicationMap>(
-    {}
-  );
-  const [subscriptionMap, setSubscriptionMap] = React.useState<SubcsriptionMap>(
-    {}
-  );
-  const [placementRuleMap, setPlacementRuleMap] =
-    React.useState<PlacementRuleMap>({});
   const [appToPlacementRuleMap, setAppToPlacementRuleMap] =
     React.useState<AppToPlacementRule>({});
 
-  const response = useK8sWatchResources(resources);
-  const memoizedResponse = useDeepCompareMemoize(response, true);
-
-  React.useEffect(() => {
-    const applicationsLoaded = memoizedResponse?.applications?.loaded;
-    const applicationsLoadError = memoizedResponse?.applications?.loadError;
-    const applications = (memoizedResponse?.applications?.data ??
-      []) as ApplicationKind[];
-
-    const subscriptionsLoaded = memoizedResponse?.subscriptions?.loaded;
-    const subscriptionsLoadError = memoizedResponse?.subscriptions?.loadError;
-    const subscriptions = (memoizedResponse?.subscriptions?.data ??
-      []) as ACMSubscriptionKind[];
-
-    const placementRulesLoaded = memoizedResponse?.placementRules?.loaded;
-    const placementRulesLoadError = memoizedResponse?.placementRules?.loadError;
-    const placementRules = (memoizedResponse?.placementRules?.data ??
-      []) as ACMPlacementRuleKind[];
-
-    const errorMessage =
-      applicationsLoadError ||
-      subscriptionsLoadError ||
-      placementRulesLoadError;
-    setError(!!errorMessage ? errorMessage?.message : '');
-
-    if (applicationsLoaded && !applicationsLoadError) {
-      // namespace wise application object
-      const appMap: ApplicationMap = applications?.reduce(
-        (arr, application) =>
-          appFilter(application)
-            ? {
-                ...arr,
-                [getNamespace(application)]: {
-                  ...arr[getNamespace(application)],
-                  [getName(application)]: application,
-                },
-              }
-            : arr,
-        {}
-      );
-      setApplicationMap(appMap);
-    }
-
-    if (subscriptionsLoaded && !subscriptionsLoadError) {
-      const isPlacementRuleModel = (subscription: ACMSubscriptionKind) =>
-        getPlacementKind(subscription) === ACMPlacementRuleModel?.kind;
-      // namespace wise subscription object
-      const subsMap: SubcsriptionMap = subscriptions?.reduce(
-        (arr, subscription) =>
-          isPlacementRuleModel(subscription)
-            ? {
-                ...arr,
-                [getNamespace(subscription)]: {
-                  ...arr[getNamespace(subscription)],
-                  [getName(subscription)]: subscription,
-                },
-              }
-            : arr,
-        {}
-      );
-      setSubscriptionMap(subsMap);
-    }
-
-    if (placementRulesLoaded && !placementRulesLoadError) {
-      // namespace wise placementrule object
-      const plRuleMap: PlacementRuleMap = placementRules?.reduce(
-        (arr, placementRule) => ({
-          ...arr,
-          [getNamespace(placementRule)]: {
-            ...arr[getNamespace(placementRule)],
-            [getName(placementRule)]: placementRule,
-          },
-        }),
-        {}
-      );
-      setPlacementRuleMap(plRuleMap);
-    }
-  }, [memoizedResponse, setError]);
+  const response = useK8sWatchResources<ApplicationWatchResourceType>(resources);
+  const {data: apps, loaded: appsLoaded, loadError: appsLoadError} = response?.applications;
+  const {data: subs, loaded: subsLoaded, loadError: subsLoadError} = response?.subscriptions;
+  const {data: plsRules, loaded: plsRulesLoaded, loadError: plsRulesLoadError} = response?.placementRules;
+  const {data: pls, loaded: plsLoaded, loadError: plsLoadError} = response?.placements;
+  const {data: plsDecision, loaded: plsDecisionLoaded, loadError: plsDecisionLoadError} = response?.placementDecisions;
+  const {data: drpcs, loaded: drpcsLoaded, loadError: drpcsLoadError} = response?.drPlacementControls;
+  const drInfo = useDisasterRecoveryParser({
+    drPlacementControls: drpcs,
+    loaded: drpcsLoaded,
+    loadError: drpcsLoadError,
+  })
+  const subscriptionAppInfo = useSubscriptionAppParser({
+    applications: apps,
+    subscriptions: subs,
+    placementRules: plsRules,
+    placements: pls,
+    placementDecisions: plsDecision,
+    disasterRecoveryInfo: drInfo, 
+    loaded: appsLoaded && subsLoaded && plsRulesLoaded && plsLoaded && plsDecisionLoaded && drpcsLoaded,
+    loadError: appsLoadError || subsLoadError || plsRulesLoadError || plsLoadError || plsDecisionLoadError || drpcsLoadError,
+  });
 
   React.useEffect(() => {
     const generateApplicationToPlacementRuleMap = (
@@ -518,6 +450,15 @@ const ApplyDRPolicyModal: React.FC<CommonModalProps<ApplyModalExtraProps>> = (
       </ModalFooter>
     </Modal>
   );
+};
+
+type ApplicationWatchResourceType = {
+  applications: ApplicationKind[],
+  subscriptions: ACMSubscriptionKind[],
+  placementRules: ACMPlacementRuleKind[],
+  placements: ACMPlacementKind[],
+  placementDecisions: ACMPlacementDecisionKind[],
+  drPlacementControls: DRPlacementControlKind[];
 };
 
 export default ApplyDRPolicyModal;

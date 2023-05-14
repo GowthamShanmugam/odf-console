@@ -5,6 +5,7 @@ import {
   ACMManagedClusterModel,
   ACMPlacementDecisionModel,
   ACMPlacementModel,
+  ACMPlacementRuleModel,
   ACMSubscriptionModel,
   ArgoApplicationSetModel,
   DRClusterModel,
@@ -90,6 +91,16 @@ export const getSubscriptionResourceObj = (props?: NamespacedObjectType) => ({
   ...(!!props?.name ? { name: props?.name } : {}),
   ...(!!props?.namespace ? { namespace: props?.namespace } : {}),
   kind: referenceForModel(ACMSubscriptionModel),
+  ...(!props?.name ? { isList: true } : {}),
+  namespaced: !!props?.namespace ? true : false,
+  optional: true,
+});
+
+export const getPlacementRuleResourceObj = (props?: NamespacedObjectType) => ({
+  cluster: HUB_CLUSTER_NAME,
+  ...(!!props?.name ? { name: props?.name } : {}),
+  ...(!!props?.namespace ? { namespace: props?.namespace } : {}),
+  kind: referenceForModel(ACMPlacementRuleModel),
   ...(!props?.name ? { isList: true } : {}),
   namespaced: !!props?.namespace ? true : false,
   optional: true,

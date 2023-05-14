@@ -26,10 +26,14 @@ export const findPlacementDecisionUsingPlacement = (
     )
   );
 
-export const findDeploymentClusterName = (
+export const findDeploymentClusterNames = (
   placementDecision: ACMPlacementDecisionKind
-): string => {
-  return placementDecision?.status?.decisions?.[0]?.clusterName || '';
+): string[] => {
+  return (
+    placementDecision?.status?.decisions?.map(
+      (decision) => decision.clusterName
+    ) || []
+  );
 };
 
 export const getManagedClusterAvailableCondition = (
