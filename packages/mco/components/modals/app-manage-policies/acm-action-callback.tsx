@@ -1,11 +1,16 @@
 import * as React from 'react';
 import { ArgoApplicationSetModel } from '@odf/mco/models';
-import { ACMApplicationKind, ArgoApplicationSetKind } from '@odf/mco/types';
+import {
+  ACMApplicationKind,
+  ArgoApplicationSetKind,
+  OCPApplicationKind,
+} from '@odf/mco/types';
 import { ApplicationModel } from '@odf/shared/models';
 import { ApplicationKind } from '@odf/shared/types';
 import { getGVKofResource, referenceForModel } from '@odf/shared/utils';
 import { ApplicationSetParser } from './parsers/application-set-parser';
 import { SubscriptionParser } from './parsers/subscription-parser';
+import { OCPApplicationParser } from './parsers/ocp-application-parser';
 
 export const AppManageDataPolicy: React.FC<ACMActionCallbackProps> = ({
   resource,
@@ -25,6 +30,13 @@ export const AppManageDataPolicy: React.FC<ACMActionCallbackProps> = ({
       {gvk === referenceForModel(ApplicationModel) && (
         <SubscriptionParser
           application={resource as ApplicationKind}
+          isOpen={isOpen}
+          close={close}
+        />
+      )}
+      {'label' in resource && (
+        <OCPApplicationParser
+          ocpApplication={resource as OCPApplicationKind}
           isOpen={isOpen}
           close={close}
         />

@@ -165,5 +165,15 @@
         "$codeRef": "appManagePolicy.AppManageDataPolicy"
       }
     }
+  },
+  {
+    "type": "acm.application/action",
+    "properties": {
+      "id": "appManagePolicy",
+      "title": "%plugin__acm~Manage data policy%",
+      "component": {
+        "$codeRef": "appManagePolicy.AppManageDataPolicy"
+      }
+    }
   }
 ]

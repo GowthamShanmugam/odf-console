@@ -2,10 +2,10 @@ import { DRPC_STATUS } from '@odf/mco/constants';
 import { DisasterRecoveryFormatted } from '@odf/mco/hooks';
 import {
   ACMApplicationKind,
-  ACMPlacementType,
   DRClusterKind,
   DRPlacementControlKind,
   DRPolicyKind,
+  MockACMPlacementType,
 } from '@odf/mco/types';
 import { findDRType, isDRPolicyValidated, matchClusters } from '@odf/mco/utils';
 import { getLatestDate } from '@odf/shared/details-page/datetime';
@@ -66,7 +66,7 @@ export const generateDRPolicyInfo = (
     : [];
 
 export const generatePlacementInfo = (
-  placement: ACMPlacementType,
+  placement: MockACMPlacementType,
   deploymentClusters: string[]
 ): PlacementType => ({
   apiVersion: placement.apiVersion,

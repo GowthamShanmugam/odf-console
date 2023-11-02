@@ -79,49 +79,14 @@ export type ACMPlacementDecisionKind = K8sResourceCommon & {
 
 export type ACMPlacementType = ACMPlacementRuleKind | ACMPlacementKind;
 
-export type PlacementInfoType = {
-  [placementUniqueKey: string]: {
-    placement: ACMPlacementType;
-    subscriptions: ACMSubscriptionKind[];
-    deploymentClusterName: string;
-  };
-};
-
-export type AppToPlacementType = {
-  [appUniqueKey: string]: {
-    application: ApplicationKind;
-    placements: PlacementInfoType;
-  };
-};
+export type MockACMPlacementType =
+  | ACMPlacementRuleKind
+  | ACMPlacementKind
+  | ApplicationKind;
 
 export type ACMMultiClusterObservability = K8sResourceCommon & {
   status?: {
     conditions: K8sResourceCondition[];
-  };
-};
-
-export type ACMApplicationKind = ArgoApplicationSetKind | ApplicationKind;
-
-export type PlacementToAppSets = {
-  namespace: string;
-  placement: string;
-  havePlacementAnnotations: boolean;
-  isAlreadyProtected: boolean;
-  appSetName: string;
-  placementDecision: string;
-  decisionClusters: string[];
-  selected: boolean;
-  isVisible: boolean;
-};
-
-export type PlacementToDrpcMap = {
-  [namespace: string]: {
-    [placement: string]: {
-      drpcName: string;
-      drPolicyName?: string;
-      existingLabels: string[];
-      updateLabels: string[];
-    };
   };
 };
 
@@ -163,3 +128,30 @@ export type SearchResult = {
     }[];
   };
 };
+
+export type OCPApplicationApiVersionType = 'apps/v1' | 'batch/v1' | 'v1';
+
+export type OCPApplicationKindType =
+  | 'cronjob'
+  | 'daemonSet'
+  | 'deployment'
+  | 'deploymentconfig'
+  | 'job'
+  | 'statefulset';
+
+export type OCPApplicationKind = K8sResourceCommon & {
+  apiVersion: OCPApplicationApiVersionType;
+  kind: OCPApplicationKindType;
+  name: string;
+  namespace: string;
+  label: string;
+  status?: any;
+  transformed?: {
+    clusterCount?: string;
+  };
+};
+
+export type ACMApplicationKind =
+  | ArgoApplicationSetKind
+  | ApplicationKind
+  | OCPApplicationKind;
