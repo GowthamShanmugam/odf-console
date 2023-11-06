@@ -26,4 +26,18 @@
     &__alert--margin-left {
         margin-left: var(--pf-global--spacer--lg);
     }
+    &__radio--margin-top {
+        margin-top: var(--pf-global--spacer--lg);
+    }
+    &__radio--width {
+        .pf-c-radio__body {
+            width: 100% !important;
+        }
+    }
+    &__radio-padding-left {
+        padding-left: 1rem;
+    }
+    &__recipe--dropdown-wide {
+        width: 15rem;
+    }
 }

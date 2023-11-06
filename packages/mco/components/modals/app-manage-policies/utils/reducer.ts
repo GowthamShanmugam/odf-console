@@ -1,3 +1,4 @@
+import { MatchExpression } from '@openshift-console/dynamic-plugin-sdk';
 import { AlertVariant } from '@patternfly/react-core';
 import { DRPlacementControlType, DataPolicyType } from './types';
 
@@ -14,6 +15,49 @@ export enum ModalActionContext {
   ASSIGN_POLICY_SUCCEEDED = 'ASSIGN_POLICY_SUCCEEDED',
   ASSIGN_POLICY_FAILED = 'ASSIGN_POLICY_FAILED',
 }
+
+export enum ManagePolicyStateType {
+  SET_MODAL_VIEW_CONTEXT = 'SET_MODAL_VIEW_CONTEXT',
+  SET_MODAL_ACTION_CONTEXT = 'SET_MODAL_ACTION_CONTEXT',
+  SET_SELECTED_POLICIES = 'SET_SELECTED_POLICIES',
+  SET_SELECTED_POLICY = 'SET_SELECTED_POLICY',
+  SET_MESSAGE = 'SET_MESSAGE',
+  SET_PLACEMENT_CONTROLS = 'SET_PLACEMENT_CONTROLS',
+  SET_PVC_SELECTORS = 'SET_PVC_SELECTORS',
+  SET_POLICY_RULE = 'SET_POLICY_RULE',
+  SET_APP_RESOURCE_SELECTOR = 'SET_APP_RESOURCE_SELECTOR',
+  SET_RECIPE_INFO = 'SET_RECIPE_INFO',
+  SET_CAPTURE_INTERVAL = 'SET_CAPTURE_INTERVAL',
+  SET_OBJECT_PROTECTION_METHOD = 'SET_OBJECT_PROTECTION_METHOD',
+  RESET_ASSIGN_POLICY_STATE = 'RESET_ASSIGN_POLICY_STATE',
+}
+
+export enum ObjectProtectionMethod {
+  ResourceLabelSelector = 'ResourceLabelSelector',
+  Recipe = 'Recipe',
+}
+
+export enum PolicyRule {
+  Namespace = 'Namespace',
+  Application = 'Application',
+}
+
+export type PVCSelectorType = {
+  placementName: string;
+  labels: string[];
+};
+
+export type RecipeInfoType = {
+  name: string;
+  namespace: string;
+};
+
+export type DynamicObjectType = {
+  objectProtectionMethod: ObjectProtectionMethod;
+  appResourceSelector?: MatchExpression[];
+  recipeInfo: RecipeInfoType;
+  captureInterval: string;
+};
 
 export type MessageType = {
   title: string;
@@ -36,6 +80,11 @@ export type PolicyConfigViewState = {
 
 export type AssignPolicyViewState = CommonViewState & {
   policy: DataPolicyType;
+  persistentVolumeClaim: {
+    pvcSelectors: PVCSelectorType[];
+  };
+  policyRule: PolicyRule;
+  dynamicObjects: DynamicObjectType;
 };
 
 export type ManagePolicyState = {
@@ -45,30 +94,37 @@ export type ManagePolicyState = {
   [ModalViewContext.ASSIGN_POLICY_VIEW]: AssignPolicyViewState;
 };
 
-export enum ManagePolicyStateType {
-  SET_MODAL_VIEW_CONTEXT = 'SET_MODAL_VIEW_CONTEXT',
-  SET_MODAL_ACTION_CONTEXT = 'SET_MODAL_ACTION_CONTEXT',
-  SET_SELECTED_POLICIES = 'SET_SELECTED_POLICIES',
-  SET_SELECTED_POLICY = 'SET_SELECTED_POLICY',
-  SET_MESSAGE = 'SET_MESSAGE',
-  SET_PLACEMENT_CONTROLS = 'SET_PLACEMENT_CONTROLS',
-}
-
 export const initialPolicyState: ManagePolicyState = {
   modalViewContext: ModalViewContext.POLICY_LIST_VIEW,
   [ModalViewContext.POLICY_LIST_VIEW]: {
     policies: [],
-    modalActionContext: null,
+    modalActionContext: undefined,
     message: {
       title: '',
     },
   },
   [ModalViewContext.POLICY_CONFIGURATON_VIEW]: {
-    policy: null,
+    policy: undefined,
   },
   [ModalViewContext.ASSIGN_POLICY_VIEW]: {
-    policy: null,
-    modalActionContext: null,
+    policy: undefined,
+    persistentVolumeClaim: {
+      pvcSelectors: [],
+    },
+    policyRule: PolicyRule.Application,
+    dynamicObjects: {
+      objectProtectionMethod: ObjectProtectionMethod.ResourceLabelSelector,
+      captureInterval: '5m',
+      recipeInfo: undefined,
+      appResourceSelector: [
+        {
+          key: '',
+          operator: 'In',
+          values: [],
+        },
+      ],
+    },
+    modalActionContext: undefined,
     message: {
       title: '',
     },
@@ -104,6 +160,40 @@ export type ManagePolicyStateAction =
       type: ManagePolicyStateType.SET_PLACEMENT_CONTROLS;
       context: ModalViewContext;
       payload: DRPlacementControlType[];
+    }
+  | {
+      type: ManagePolicyStateType.SET_PVC_SELECTORS;
+      context: ModalViewContext;
+      payload: PVCSelectorType[];
+    }
+  | {
+      type: ManagePolicyStateType.SET_POLICY_RULE;
+      context: ModalViewContext;
+      payload: PolicyRule;
+    }
+  | {
+      type: ManagePolicyStateType.SET_APP_RESOURCE_SELECTOR;
+      context: ModalViewContext;
+      payload: MatchExpression[];
+    }
+  | {
+      type: ManagePolicyStateType.SET_RECIPE_INFO;
+      context: ModalViewContext;
+      payload: RecipeInfoType;
+    }
+  | {
+      type: ManagePolicyStateType.SET_CAPTURE_INTERVAL;
+      context: ModalViewContext;
+      payload: string;
+    }
+  | {
+      type: ManagePolicyStateType.SET_OBJECT_PROTECTION_METHOD;
+      context: ModalViewContext;
+      payload: ObjectProtectionMethod;
+    }
+  | {
+      type: ManagePolicyStateType.RESET_ASSIGN_POLICY_STATE;
+      context: ModalViewContext;
     };
 
 export const managePolicyStateReducer = (
@@ -153,15 +243,81 @@ export const managePolicyStateReducer = (
         },
       };
     }
-    case ManagePolicyStateType.SET_PLACEMENT_CONTROLS: {
+    case ManagePolicyStateType.SET_PVC_SELECTORS: {
       return {
         ...state,
         [action.context]: {
           ...state[action.context],
-          policy: {
-            ...state[action.context]['policy'],
-            placementControlInfo: action.payload,
+          persistentVolumeClaim: {
+            ...state[action.context]['persistentVolumeClaim'],
+            pvcSelectors: action.payload,
           },
+        },
+      };
+    }
+    case ManagePolicyStateType.SET_POLICY_RULE: {
+      return {
+        ...state,
+        [action.context]: {
+          ...state[action.context],
+          policyRule: action.payload,
+        },
+      };
+    }
+    case ManagePolicyStateType.SET_APP_RESOURCE_SELECTOR: {
+      return {
+        ...state,
+        [action.context]: {
+          ...state[action.context],
+          dynamicObjects: {
+            ...state[action.context]['dynamicObjects'],
+            appResourceSelector: action.payload,
+          },
+        },
+      };
+    }
+    case ManagePolicyStateType.SET_RECIPE_INFO: {
+      return {
+        ...state,
+        [action.context]: {
+          ...state[action.context],
+          dynamicObjects: {
+            ...state[action.context]['dynamicObjects'],
+            recipeInfo: action.payload,
+          },
+        },
+      };
+    }
+    case ManagePolicyStateType.SET_CAPTURE_INTERVAL: {
+      return {
+        ...state,
+        [action.context]: {
+          ...state[action.context],
+          dynamicObjects: {
+            ...state[action.context]['dynamicObjects'],
+            captureInterval: action.payload,
+          },
+        },
+      };
+    }
+    case ManagePolicyStateType.SET_OBJECT_PROTECTION_METHOD: {
+      return {
+        ...state,
+        [action.context]: {
+          ...state[action.context],
+          dynamicObjects: {
+            ...state[action.context]['dynamicObjects'],
+            objectProtectionMethod: action.payload,
+          },
+        },
+      };
+    }
+    case ManagePolicyStateType.RESET_ASSIGN_POLICY_STATE: {
+      return {
+        ...state,
+        [action.context]: {
+          ...state[action.context],
+          ...initialPolicyState[action.context],
         },
       };
     }

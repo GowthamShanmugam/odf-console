@@ -1,0 +1,8 @@
+.odf-review-step{
+    &__content--margin-bottom {
+        margin-bottom: var(--pf-global--spacer--md);
+    }
+    &__content--padding-bottom {
+        padding-bottom: var(--pf-global--spacer--sm);
+    }
+}
