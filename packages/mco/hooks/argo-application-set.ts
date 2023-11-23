@@ -5,6 +5,7 @@ import {
   WatchK8sResource,
   WatchK8sResultsObject,
 } from '@openshift-console/dynamic-plugin-sdk';
+import { GIT_OPS_NAMESPACE } from '../constants';
 import {
   ArgoApplicationSetKind,
   ACMPlacementDecisionKind,
@@ -31,9 +32,15 @@ import {
 
 const getResources = () => ({
   managedClusters: getManagedClusterResourceObj(),
-  applications: getApplicationSetResourceObj(),
-  placements: getPlacementResourceObj(),
-  placementDecisions: getPlacementDecisionsResourceObj(),
+  applications: getApplicationSetResourceObj({
+    namespace: GIT_OPS_NAMESPACE,
+  }),
+  placements: getPlacementResourceObj({
+    namespace: GIT_OPS_NAMESPACE,
+  }),
+  placementDecisions: getPlacementDecisionsResourceObj({
+    namespace: GIT_OPS_NAMESPACE,
+  }),
 });
 
 export const useArgoApplicationSetResourceWatch: UseArgoApplicationSetResourceWatch =

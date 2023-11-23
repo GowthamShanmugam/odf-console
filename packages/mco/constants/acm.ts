@@ -33,3 +33,6 @@ export enum ClusterClaimTypes {
 export const MANAGED_CLUSTER_CONDITION_AVAILABLE =
   'ManagedClusterConditionAvailable';
 export const MANAGED_CLUSTER_JOINED = 'ManagedClusterJoined';
+
+// Gitops
+export const GIT_OPS_NAMESPACE = 'openshift-gitops';
