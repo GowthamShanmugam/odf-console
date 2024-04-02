@@ -590,11 +590,6 @@ export const findPlacementFromArgoAppSet = (
       findPlacementNameFromAppSet(application) === getName(placement)
   );
 
-export const getClustersFromDecisions = (
-  placement: ACMPlacementDecisionKind | ACMPlacementRuleKind
-): string[] =>
-  placement?.status?.decisions.map((decision) => decision?.clusterName) || [];
-
 export const getRemoteNamespaceFromAppSet = (
   application: ArgoApplicationSetKind
 ): string => application?.spec?.template?.spec?.destination?.namespace;
@@ -607,11 +602,12 @@ export const getLastAppDeploymentClusterName = (
   ] || '';
 
 export const findDeploymentClusters = (
-  placementDecision: ACMPlacementDecisionKind,
-  drPlacementControl: DRPlacementControlKind
+  placementDecision: ACMPlacementDecisionKind | ACMPlacementRuleKind,
+  drPlacementControl?: DRPlacementControlKind
 ): string[] => {
-  if ((placementDecision ?? {}).status?.decisions?.length > 0) {
-    return getClustersFromDecisions(placementDecision);
+  const decisions = placementDecision?.status?.decisions || [];
+  if (decisions.length > 0) {
+    return decisions.map((decision) => decision?.clusterName);
   } else {
     const lastDeploymentClusterName =
       getLastAppDeploymentClusterName(drPlacementControl);
