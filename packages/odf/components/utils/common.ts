@@ -38,6 +38,7 @@ import {
   convertToBaseValue,
   getRack,
   humanizeBinaryBytes,
+  pluralize,
 } from '@odf/shared/utils';
 import { Base64 } from 'js-base64';
 import * as _ from 'lodash-es';
@@ -51,16 +52,6 @@ import {
   DISASTER_RECOVERY_TARGET_ANNOTATION,
 } from '../../constants';
 import { WizardNodeState, WizardState } from '../create-storage-system/reducer';
-
-export const pluralize = (
-  count: number,
-  singular: string,
-  plural: string = `${singular}s`,
-  includeCount: boolean = true
-) => {
-  const pluralized = `${count === 1 ? singular : plural}`;
-  return includeCount ? `${count || 0} ${pluralized}` : pluralized;
-};
 
 export const getTotalCpu = (nodes: WizardNodeState[]): number =>
   nodes.reduce(

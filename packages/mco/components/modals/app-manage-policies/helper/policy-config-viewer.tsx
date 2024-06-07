@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import {
   REPLICATION_DISPLAY_TEXT,
   SYNC_SCHEDULE_DISPLAY_TEXT,
@@ -14,6 +13,7 @@ import {
   RedExclamationCircleIcon,
 } from '@odf/shared/status/icons';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
+import { pluralize } from '@odf/shared/utils';
 import { StatusIconAndText } from '@openshift-console/dynamic-plugin-sdk';
 import { SelectOption } from '@patternfly/react-core/deprecated';
 import { TFunction } from 'i18next';

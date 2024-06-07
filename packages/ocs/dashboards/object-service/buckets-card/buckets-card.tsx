@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import {
   NooBaaObjectBucketClaimModel,
   NooBaaObjectBucketModel,
@@ -13,7 +12,7 @@ import {
 import { RedExclamationCircleIcon } from '@odf/shared/status/icons';
 import { K8sResourceKind } from '@odf/shared/types';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
-import { referenceForModel } from '@odf/shared/utils';
+import { pluralize, referenceForModel } from '@odf/shared/utils';
 import { getGaugeValue } from '@odf/shared/utils';
 import {
   useK8sWatchResource,

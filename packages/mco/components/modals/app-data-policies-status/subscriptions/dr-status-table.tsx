@@ -1,11 +1,11 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import {
   getLatestDate,
   fromNow,
   utcDateTimeFormatter,
 } from '@odf/shared/details-page/datetime';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
+import { pluralize } from '@odf/shared/utils';
 import { StatusIconAndText } from '@openshift-console/dynamic-plugin-sdk';
 import { Table } from '@patternfly/react-table/deprecated';
 import * as _ from 'lodash-es';

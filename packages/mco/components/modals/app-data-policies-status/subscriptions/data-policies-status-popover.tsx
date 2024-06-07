@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import { useDeepCompareMemoize } from '@odf/shared/hooks/deep-compare-memoize';
 import { getNamespace } from '@odf/shared/selectors';
 import { ApplicationKind } from '@odf/shared/types';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
+import { pluralize } from '@odf/shared/utils';
 import {
   useK8sWatchResources,
   useModal,

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import { useODFSystemFlagsSelector } from '@odf/core/redux';
 import { GraphEmpty } from '@odf/shared/charts';
 import { DEFAULT_PROMETHEUS_RETENTION } from '@odf/shared/constants';
@@ -17,7 +16,11 @@ import {
 import { ConfigMapModel } from '@odf/shared/models';
 import { ConfigMapKind } from '@odf/shared/types';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
-import { getInstantVectorStats, humanizeBinaryBytes } from '@odf/shared/utils';
+import {
+  getInstantVectorStats,
+  humanizeBinaryBytes,
+  pluralize,
+} from '@odf/shared/utils';
 import {
   PrometheusResponse,
   useK8sWatchResource,

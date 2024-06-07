@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import { CommonModalProps } from '@odf/shared/modals/common';
 import { ModalBody, ModalFooter } from '@odf/shared/modals/Modal';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
+import { pluralize } from '@odf/shared/utils';
 import { Modal, Button, Nav, NavList, NavItem } from '@patternfly/react-core';
 import { DRPolicyMap, getDRPoliciesCount } from '../../../../utils';
 import { DRPoliciesStatusTable } from './dr-status-table';

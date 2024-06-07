@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import { GreenCheckCircleIcon } from '@odf/shared/status/icons';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
+import { pluralize } from '@odf/shared/utils';
 import { StatusIconAndText } from '@openshift-console/dynamic-plugin-sdk';
 import {
   Flex,

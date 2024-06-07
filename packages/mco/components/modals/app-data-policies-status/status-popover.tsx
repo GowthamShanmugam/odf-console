@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
+import { pluralize } from '@odf/shared/utils';
 import { Popover } from '@patternfly/react-core';
 import { DRStatus, DRStatusProps } from './dr-status';
 

@@ -1,10 +1,9 @@
 import * as React from 'react';
-import { pluralize } from '@odf/core/components/utils';
 import { useAccessReview } from '@odf/shared/hooks/rbac-hook';
 import { Kebab } from '@odf/shared/kebab/kebab';
 import { getName } from '@odf/shared/selectors';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
-import { referenceForModel } from '@odf/shared/utils';
+import { pluralize, referenceForModel } from '@odf/shared/utils';
 import {
   ListPageBody,
   ListPageCreateLink,

@@ -172,3 +172,13 @@ export const parseOprMajorMinorVersion = (version: string): string => {
 
 export const getOprMajorMinorVersion = (operator: K8sResourceKind): string =>
   parseOprMajorMinorVersion(getOprVersionFromCSV(operator));
+
+export const pluralize = (
+  count: number,
+  singular: string,
+  plural: string = `${singular}s`,
+  includeCount: boolean = true
+) => {
+  const pluralized = `${count === 1 ? singular : plural}`;
+  return includeCount ? `${count || 0} ${pluralized}` : pluralized;
+};
