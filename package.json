@@ -119,7 +119,10 @@
     "webpack": "5.75.0",
     "webpack-bundle-analyzer": "^4.6.1",
     "webpack-cli": "4.5.x",
-    "yup": "^0.32.11"
+    "yup": "^0.32.11",
+    "null-loader": "4.0.1",
+    "@types/compression-webpack-plugin": "9.0.0",
+    "compression-webpack-plugin": "10.0.0"
   },
   "devDependencies": {
     "@cypress/webpack-preprocessor": "^5.9.1",

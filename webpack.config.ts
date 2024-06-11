@@ -8,6 +8,8 @@ import { ForkTsCheckerWebpackPlugin } from 'fork-ts-checker-webpack-plugin/lib/p
 import * as webpack from 'webpack';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 import type { Configuration as DevServerConfiguration } from 'webpack-dev-server';
+import * as CompressionPlugin from 'compression-webpack-plugin'
+
 
 const LANGUAGES = ['en', 'ja', 'ko', 'zh'];
 const resolveLocale = (dirName: string, ns: string) =>
@@ -27,7 +29,7 @@ if (PLUGIN === undefined) {
 const processPath = path.resolve(__dirname, `plugins/${PLUGIN}`);
 process.chdir(processPath);
 
-const config: webpack.Configuration & DevServerConfiguration = {
+const config: webpack.Configuration & {devServer: DevServerConfiguration} = {
   context: __dirname,
   mode: NODE_ENV,
   entry: {},
@@ -35,6 +37,7 @@ const config: webpack.Configuration & DevServerConfiguration = {
     path: path.resolve('./dist'),
     filename: '[name]-bundle.js',
     chunkFilename: '[name]-chunk.js',
+    clean: true
   },
   ignoreWarnings: [(warning) => !!warning?.file?.includes('shared module')],
   watchOptions: {
@@ -52,6 +55,7 @@ const config: webpack.Configuration & DevServerConfiguration = {
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
+
     alias: {
       '@odf/shared': path.resolve(__dirname, './packages/shared/src/'),
     },
@@ -61,7 +65,7 @@ const config: webpack.Configuration & DevServerConfiguration = {
       {
         test: /(\.jsx?)|(\.tsx?)$/,
         include: /packages/,
-        exclude: /(build|dist)/, // Ignore shared build folder.
+        exclude: [/(build|dist)/, /node_modules/], // Ignore shared build folder.
         use: [
           {
             loader: 'ts-loader',
@@ -83,19 +87,6 @@ const config: webpack.Configuration & DevServerConfiguration = {
         exclude: /(build|dist)/, // Ignore shared build folder.
         use: [
           { loader: 'cache-loader' },
-          {
-            loader: 'thread-loader',
-            options: {
-              ...(NODE_ENV === 'development'
-                ? { poolTimeout: Infinity, poolRespawn: false }
-                : OPENSHIFT_CI
-                ? {
-                    workers: 4,
-                    workerNodeArgs: ['--max-old-space-size=1024'],
-                  }
-                : {}),
-            },
-          },
           { loader: 'style-loader' },
           {
             loader: 'css-loader',
@@ -123,7 +114,13 @@ const config: webpack.Configuration & DevServerConfiguration = {
       },
       {
         test: /\.css$/,
+        exclude: /node_modules\/@patternfly/,
         use: ['style-loader', 'css-loader'],
+      },
+      {
+        test: /\.css$/,
+        include: /node_modules\/@patternfly/,
+        loader: 'null-loader',
       },
       {
         test: /\.(png|jpg|jpeg|gif|svg|woff2?|ttf|eot|otf)(\?.*$|$)/,
@@ -136,9 +133,7 @@ const config: webpack.Configuration & DevServerConfiguration = {
   },
   plugins: [
     new ConsoleRemotePlugin(),
-    new CopyWebpackPlugin({
-      patterns: [...resolveLocale(__dirname, process.env.I8N_NS || '')],
-    }),
+   
     new webpack.DefinePlugin({
       'process.env.I8N_NS': JSON.stringify(process.env.I8N_NS),
       'process.env.PLUGIN_VERSION': JSON.stringify(process.env.PLUGIN_VERSION),
@@ -146,23 +141,14 @@ const config: webpack.Configuration & DevServerConfiguration = {
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
     }),
-    new ForkTsCheckerWebpackPlugin({
-      issue: {
-        exclude: [{ file: '**/node_modules/**/*' }],
-      },
-      typescript: {
-        diagnosticOptions: {
-          semantic: true,
-          syntactic: true,
-        },
-      },
-    }),
     new CircularDependencyPlugin({
       exclude: /cypress|plugins|scripts|node_modules/,
       failOnError: true,
       allowAsyncCycles: false,
       cwd: process.cwd(),
     }),
+    new CompressionPlugin({ algorithm: 'gzip' }),
+    new CompressionPlugin({ algorithm: 'brotliCompress', filename: '[path][base].br' }),
   ],
   devtool: 'eval-cheap-module-source-map',
   optimization: {
