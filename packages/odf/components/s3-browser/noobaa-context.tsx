@@ -47,14 +47,25 @@ export const NoobaaS3Provider: React.FC<NoobaaS3ProviderType> = ({
   const [noobaaS3, noobaaS3Error]: [S3Commands, unknown] = React.useMemo(() => {
     if (!_.isEmpty(secretData) && !_.isEmpty(routeData)) {
       try {
+        const url = window.location.hostname;
         // ToDo: Remove this once ConsolePlugin proxy is configured
-        const endpoint = `http://${routeData.spec.host}`;
+        //const endpoint = `http://s3-openshift-storage.apps.drcluster1-nov-7-24.devcluster.openshift.com`;
+        const endpoint = `http://192.168.0.104:3000/s3_browser`;
+        //const endpoint = `https://${url}/api/proxy/plugin/odf-console/s3_browser`;
         const accessKeyId = atob(secretData.data?.[NOOBAA_ACCESS_KEY_ID]);
         const secretAccessKey = atob(
           secretData.data?.[NOOBAA_SECRET_ACCESS_KEY]
         );
 
-        return [new S3Commands(endpoint, accessKeyId, secretAccessKey), null];
+        return [
+          new S3Commands(
+            endpoint,
+            accessKeyId,
+            secretAccessKey,
+            routeData.spec.host
+          ),
+          null,
+        ];
       } catch (err) {
         return [{} as S3Commands, err];
       }

@@ -1,3 +1,4 @@
+import { Sha256 } from '@aws-crypto/sha256-browser';
 import {
   S3Client,
   ListBucketsCommand,
@@ -15,6 +16,8 @@ import {
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { SignatureV4 } from '@aws-sdk/signature-v4';
+import { HttpRequest, RequestSigner } from '@smithy/types';
 import {
   CreateBucket,
   ListBuckets,
@@ -31,17 +34,49 @@ import {
   GetBucketPolicy,
 } from './types';
 
+const createCustomSigner = (region, credentials, host): RequestSigner => {
+  const signer = new SignatureV4({
+    credentials: credentials,
+    region: region,
+    service: 's3',
+    uriEscapePath: false,
+    applyChecksum: false,
+    sha256: Sha256,
+  });
+
+  return {
+    sign: async (request: HttpRequest) => {
+      //request.headers.host = host;
+      return signer.sign(request);
+    },
+  };
+};
+
 export class S3Commands extends S3Client {
-  constructor(endpoint: string, accessKeyId: string, secretAccessKey: string) {
+  constructor(
+    endpoint: string,
+    accessKeyId: string,
+    secretAccessKey: string,
+    host: string
+  ) {
     super({
       // "region" is a required parameter for the SDK, using "none" as a workaround
       region: 'none',
       endpoint,
       credentials: {
-        accessKeyId,
-        secretAccessKey,
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
       },
       forcePathStyle: true,
+      signingEscapePath: true,
+      signer: createCustomSigner(
+        'none',
+        {
+          accessKeyId: accessKeyId,
+          secretAccessKey: secretAccessKey,
+        },
+        host
+      ),
     });
   }
 
@@ -64,8 +99,22 @@ export class S3Commands extends S3Client {
   getBucketVersioning: GetBucketVersioning = (input) =>
     this.send(new GetBucketVersioningCommand(input));
 
-  listBuckets: ListBuckets = (input) =>
-    this.send(new ListBucketsCommand(input));
+  listBuckets: ListBuckets = (input) => {
+    const command = new ListBucketsCommand(input);
+    /*command.middlewareStack.add(
+      (next) =>
+        (args) => {
+          const r = args.request as HttpRequest
+    
+          r.hostname = "s3-openshift-storage.apps.drcluster1-nov-7-24.devcluster.openshift.com"
+    
+          return next(args)
+        },
+      { step: 'build', priority: 'high' },
+    )*/
+    return this.send(command);
+
+  }
 
   putBucketTags: PutBucketTags = (input) =>
     this.send(new PutBucketTaggingCommand(input));

@@ -64,7 +64,7 @@ export const setOCSFlags = async (setFlag: SetFeatureFlag) => {
             !isClusterIgnored(sc) && !isExternalCluster(sc)
         );
         setFlag(PROVIDER_MODE, isProviderMode(internalStorageCluster));
-        setFlag(MCG_STANDALONE, isMCGStandaloneCluster(internalStorageCluster));
+        setFlag(MCG_STANDALONE, !isMCGStandaloneCluster(internalStorageCluster));
         clearInterval(ocsIntervalId);
       } else if (setFlagFalse) {
         setFlagFalse = false;
