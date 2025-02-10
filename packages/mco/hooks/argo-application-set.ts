@@ -170,7 +170,7 @@ type WatchResourceType = {
   managedClusters?: ACMManagedClusterKind | ACMManagedClusterKind[];
 };
 
-type WatchResources = {
+export type ArgoApplicationWatchResources = {
   resources?: {
     applications?: WatchK8sResource;
     placements?: WatchK8sResource;
@@ -196,7 +196,7 @@ type WatchResources = {
 };
 
 export type UseArgoApplicationSetResourceWatch = (
-  resource?: WatchResources
+  resource?: ArgoApplicationWatchResources
 ) => [ArgoApplicationSetResourceKind, boolean, any];
 
 export type ArgoApplicationSetFormattedKind = {

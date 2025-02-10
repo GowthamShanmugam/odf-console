@@ -3,7 +3,13 @@ import {
   K8sResourceCommon,
   ObjectMetadata,
 } from '@openshift-console/dynamic-plugin-sdk';
-import { LABELS_SPLIT_CHAR, LABEL_SPLIT_CHAR } from '../constants';
+import {
+  HUB_CLUSTER_NAME,
+  LABELS_SPLIT_CHAR,
+  LABEL_SPLIT_CHAR,
+} from '../constants';
+import { ArgoApplicationSetModel, VirtualMachine } from '../models';
+import { ApplicationModel } from '@odf/shared';
 
 // Search query
 export const searchFilterQuery =
@@ -150,6 +156,49 @@ export const queryK8sResourceFromCluster = (
           },
         ],
         limit: 2000, // search said not to use unlimited results
+      },
+    ],
+  },
+  query: searchRelatedItemsFilterQuery,
+});
+
+// ACM seach query to find managed application resources of virtualmachine.
+export const queryVMManagedAppResourcesFromHub = (
+  name: string,
+  namespace: string
+): SearchQuery => ({
+  operationName: 'searchResultRelatedItems',
+  variables: {
+    input: [
+      {
+        filters: [
+          {
+            property: 'namespace',
+            values: namespace,
+          },
+          {
+            property: 'cluster',
+            values: HUB_CLUSTER_NAME,
+          },
+          {
+            property: 'name',
+            values: name,
+          },
+          {
+            property: 'kind',
+            values: VirtualMachine.kind,
+          },
+          {
+            property: 'apigroup',
+            values: VirtualMachine.apiGroup,
+          },
+          {
+            property: 'apiversion',
+            values: VirtualMachine.apiVersion,
+          },
+        ],
+        relatedKinds: [ApplicationModel.kind, ArgoApplicationSetModel.kind],
+        limit: 1, // search said not to use unlimited results
       },
     ],
   },

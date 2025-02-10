@@ -1,14 +1,11 @@
 import * as React from 'react';
 import { DRApplication, PLACEMENT_REF_LABEL } from '@odf/mco/constants';
 import {
-  DisasterRecoveryResourceKind,
-  getDRClusterResourceObj,
-  getDRPlacementControlResourceObj,
-  getDRPolicyResourceObj,
   getPlacementDecisionsResourceObj,
   getPlacementResourceObj,
   useArgoApplicationSetResourceWatch,
   useDisasterRecoveryResourceWatch,
+  ArgoApplicationWatchResources,
 } from '@odf/mco/hooks';
 import { ArgoApplicationSetKind } from '@odf/mco/types';
 import {
@@ -16,7 +13,7 @@ import {
   getRemoteNamespaceFromAppSet,
   findDeploymentClusters,
 } from '@odf/mco/utils';
-import { getNamespace } from '@odf/shared/selectors';
+import { getName, getNamespace } from '@odf/shared/selectors';
 import * as _ from 'lodash-es';
 import { AppManagePoliciesModal } from '../app-manage-policies-modal';
 import {
@@ -25,6 +22,7 @@ import {
   generateDRInfo,
   generatePlacementInfo,
   getMatchingDRPolicies,
+  getDRResources,
 } from '../utils/parser-utils';
 import {
   ApplicationInfoType,
@@ -33,23 +31,10 @@ import {
   DRPolicyType,
 } from '../utils/types';
 
-const getDRResources = (namespace: string) => ({
-  resources: {
-    drPolicies: getDRPolicyResourceObj(),
-    drClusters: getDRClusterResourceObj(),
-    drPlacementControls: getDRPlacementControlResourceObj({
-      namespace: namespace,
-    }),
-  },
-});
-
 const getApplicationSetResources = (
   appResource: ArgoApplicationSetKind,
   namespace: string,
   placementName: string,
-  drResources: DisasterRecoveryResourceKind,
-  drLoaded: boolean,
-  drLoadError: any
 ) => ({
   resources: {
     placements: getPlacementResourceObj({
@@ -60,11 +45,6 @@ const getApplicationSetResources = (
       namespace: namespace,
       selector: { matchLabels: { [PLACEMENT_REF_LABEL]: placementName } },
     }),
-  },
-  drResources: {
-    data: drResources,
-    loaded: drLoaded,
-    loadError: drLoadError,
   },
   overrides: {
     applications: {
@@ -85,23 +65,45 @@ export const ApplicationSetParser: React.FC<ApplicationSetParserProps> = ({
   isOpen,
   close,
 }) => {
-  const [drResources, drLoaded, drLoadError] = useDisasterRecoveryResourceWatch(
-    getDRResources(getNamespace(application))
-  );
-  const [appSetResources, loaded, loadError] =
-    useArgoApplicationSetResourceWatch(
-      getApplicationSetResources(
+  const namespace = getNamespace(application);
+  return (
+    <_ApplicationSetParser
+      applicationDisplayName={getName(application)}
+      namespace={namespace}
+      watchResource={getApplicationSetResources(
         application,
-        getNamespace(application),
+        namespace,
         findPlacementNameFromAppSet(application),
-        drResources,
-        drLoaded,
-        drLoadError
-      )
-    );
-  const appSetResource = appSetResources?.formattedResources?.[0];
-  const { drPolicies } = drResources;
+      )}
+      isOpen={isOpen}
+      close={close}
+    />
+  );
+};
 
+export const _ApplicationSetParser: React.FC<_ApplicationSetParserProps> = ({
+  namespace,
+  watchResource,
+  isOpen,
+  close,
+}) => {
+   // DR resource watch
+   const [drResources, drLoaded, drLoadError] = useDisasterRecoveryResourceWatch(
+    getDRResources(namespace)
+  );
+
+  const [appSetResources, loaded, loadError] =
+    useArgoApplicationSetResourceWatch({
+      ...watchResource,
+      drResources: {
+        data: drResources,
+        loaded: drLoaded,
+        loadError: drLoadError,
+      }
+    });
+  const { drPolicies } = drResources
+  const appSetResource = appSetResources?.formattedResources?.[0];
+  const { application } = appSetResource;
   const applicationInfo: ApplicationInfoType = React.useMemo(() => {
     let applicationInfo: ApplicationInfoType = {};
     if (loaded && !loadError) {
@@ -155,4 +157,12 @@ type ApplicationSetParserProps = {
   application: ArgoApplicationSetKind;
   isOpen: boolean;
   close: () => void;
+};
+
+type _ApplicationSetParserProps = {
+  applicationDisplayName: string;
+  namespace: string;
+  isOpen: boolean;
+  close: () => void;
+  watchResource: ArgoApplicationWatchResources;
 };

@@ -156,5 +156,30 @@
       "exact": true,
       "component": { "$codeRef": "enrollDiscoveredApplication.default" }
     }
+  },
+  {
+    "type": "acm.virtualmachine/action",
+    "properties": {
+      "id": "failover",
+      "title": "%plugin__odf-multicluster-console~Failover VirtualMachine%",
+      "model": [
+        {
+          "apiVersion": "kubevirt.io/v1",
+          "kind": "VirtualMachine"
+        }
+      ],
+      "component": {
+        "$codeRef": "appFailoverRelocate.ApplicationFailover"
+      }
+    }
+  },
+  {
+    "type": "acm.virtualmachine/list/column",
+    "properties": {
+      "header": "%plugin__odf-multicluster-console~DR status%",
+      "cell": {
+        "$codeRef": "dataPolicyStatusPopover.default"
+      }
+    }
   }
 ]

@@ -1,11 +1,18 @@
 import * as React from 'react';
-import { ArgoApplicationSetModel } from '@odf/mco/models';
-import { ACMApplicationKind, ArgoApplicationSetKind } from '@odf/mco/types';
+import { ArgoApplicationSetModel, VirtualMachine } from '@odf/mco/models';
+import {
+  ACMApplicationKind,
+  ArgoApplicationSetKind,
+  VirtualMachineKind,
+} from '@odf/mco/types';
 import { ApplicationModel } from '@odf/shared/models';
 import { ApplicationKind } from '@odf/shared/types';
 import { getGVKofResource, referenceForModel } from '@odf/shared/utils';
-import { ApplicationSetParser } from './parsers/application-set-parser';
-import { SubscriptionParser } from './parsers/subscription-parser';
+import {
+  ApplicationSetParser,
+  SubscriptionParser,
+  VirtualMachineParser,
+} from './parsers';
 
 const AppManageDataPolicy: React.FC<ACMActionCallbackProps> = ({
   resource,
@@ -29,13 +36,20 @@ const AppManageDataPolicy: React.FC<ACMActionCallbackProps> = ({
           close={close}
         />
       )}
+      {gvk === referenceForModel(VirtualMachine) && (
+        <VirtualMachineParser
+          virtualMachine={resource as VirtualMachineKind}
+          isOpen={isOpen}
+          close={close}
+        />
+      )}
     </>
   );
 };
 
 export type ACMActionCallbackProps = {
   isOpen: boolean;
-  resource: ACMApplicationKind;
+  resource: ACMApplicationKind | VirtualMachineKind;
   close: () => void;
 };
 

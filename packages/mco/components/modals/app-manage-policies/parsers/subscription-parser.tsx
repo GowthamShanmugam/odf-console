@@ -2,9 +2,6 @@ import * as React from 'react';
 import { DRApplication } from '@odf/mco/constants';
 import {
   DisasterRecoveryResourceKind,
-  getDRClusterResourceObj,
-  getDRPlacementControlResourceObj,
-  getDRPolicyResourceObj,
   useSubscriptionResourceWatch,
   useDisasterRecoveryResourceWatch,
   getPlacementResourceObj,
@@ -24,6 +21,7 @@ import {
   generateDRInfo,
   generatePlacementInfo,
   getMatchingDRPolicies,
+  getDRResources,
 } from '../utils/parser-utils';
 import {
   ApplicationInfoType,
@@ -32,16 +30,6 @@ import {
   DRPolicyType,
   PlacementType,
 } from '../utils/types';
-
-const getDRResources = (namespace: string) => ({
-  resources: {
-    drPolicies: getDRPolicyResourceObj(),
-    drClusters: getDRClusterResourceObj(),
-    drPlacementControls: getDRPlacementControlResourceObj({
-      namespace,
-    }),
-  },
-});
 
 const getSubscriptionResources = (
   appResource: ApplicationKind,

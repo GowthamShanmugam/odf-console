@@ -21,6 +21,11 @@ import {
   DRInfoType,
   PlacementType,
 } from './types';
+import {
+  getDRClusterResourceObj,
+  getDRPlacementControlResourceObj,
+  getDRPolicyResourceObj,
+} from '@odf/mco/hooks';
 
 const getPVCSelector = (pvcSelector: Selector): string[] => {
   const { matchLabels, matchExpressions } = pvcSelector;
@@ -124,3 +129,13 @@ export const getMatchingDRPolicies = (
     }, []) || []
   );
 };
+
+export const getDRResources = (namespace: string) => ({
+  resources: {
+    drPolicies: getDRPolicyResourceObj(),
+    drClusters: getDRClusterResourceObj(),
+    drPlacementControls: getDRPlacementControlResourceObj({
+      namespace,
+    }),
+  },
+});
