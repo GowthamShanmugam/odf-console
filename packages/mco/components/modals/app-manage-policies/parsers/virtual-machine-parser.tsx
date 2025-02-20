@@ -6,7 +6,7 @@ import {
   ArgoApplicationSetModel,
   VirtualMachineModel,
 } from '@odf/mco/models';
-import { SearchResultItemType, VirtualMachineKind } from '@odf/mco/types';
+import { SearchResultItemType } from '@odf/mco/types';
 import {
   getLabelsFromSearchResult,
   queryManagedApplicationResourcesForVM,
@@ -17,6 +17,8 @@ import { ModalViewContext } from '../utils/reducer';
 import { PVCQueryFilter } from '../utils/types';
 import { ApplicationSetParser } from './application-set-parser';
 import { SubscriptionParser } from './subscription-parser';
+import { DiscoveredParser } from './discovered-parser';
+import { K8sResourceCommon } from '@openshift-console/dynamic-plugin-sdk';
 
 const getPVCQueryFilter = (
   name: string,
@@ -30,11 +32,13 @@ const getPVCQueryFilter = (
   { property: 'cluster', values: cluster },
 ];
 
-const getApplicationSetName = (vm: VirtualMachineKind) =>
+const getApplicationSetName = (vm: K8sResourceCommon) =>
   getLabel(
     vm,
     KUBE_INSTANCE_LABEL,
-    getLabelsFromSearchResult(vm, true)?.[KUBE_INSTANCE_LABEL]?.[0]
+    getLabelsFromSearchResult(vm as SearchResultItemType, true)?.[
+      KUBE_INSTANCE_LABEL
+    ]?.[0]
   );
 
 export const VirtualMachineParser: React.FC<VirtualMachineParserProps> = ({
@@ -42,9 +46,10 @@ export const VirtualMachineParser: React.FC<VirtualMachineParserProps> = ({
   cluster,
   setCurrentModalContext,
 }) => {
-  const vmName = getName(virtualMachine) || virtualMachine?.name;
-  const vmNamespace = getNamespace(virtualMachine) || virtualMachine?.namespace;
-  const clusterName = cluster || virtualMachine.cluster;
+  const vmName = getName(virtualMachine) || virtualMachine?.['name'];
+  const vmNamespace =
+    getNamespace(virtualMachine) || virtualMachine?.['namespace'];
+  const clusterName = cluster || virtualMachine?.['cluster'];
   const applicationSetName = getApplicationSetName(virtualMachine);
   const pvcQueryFilter = getPVCQueryFilter(vmName, vmNamespace, clusterName);
 
@@ -129,12 +134,25 @@ export const VirtualMachineParser: React.FC<VirtualMachineParserProps> = ({
       />
     );
   }
-  // TODO: Add support for discovered application type
-  return null;
+  return (
+    <DiscoveredParser
+      virtualMachine={{
+        apiVersion: `${VirtualMachineModel.apiGroup}/${VirtualMachineModel.apiVersion}`,
+        kind: VirtualMachineModel.kind,
+        metadata: {
+          name: vmName,
+          namespace: vmNamespace,
+        },
+      }}
+      setCurrentModalContext={setCurrentModalContext}
+      pvcQueryFilter={pvcQueryFilter}
+      cluster={cluster}
+    />
+  );
 };
 
 type VirtualMachineParserProps = {
-  application: VirtualMachineKind;
+  application: K8sResourceCommon;
   cluster?: string;
   setCurrentModalContext: React.Dispatch<
     React.SetStateAction<ModalViewContext>

@@ -108,6 +108,29 @@ export const createSteps = (
               canJumpTo: stepIdReached >= 3,
             },
           ];
+    case DRApplication.DISCOVERED:
+      return [
+        {
+          id: 1,
+          ...commonSteps.policy,
+          canJumpTo: stepIdReached >= 1,
+        },
+        {
+          id: 2,
+          ...commonSteps.policy,
+          canJumpTo: stepIdReached >= 2,
+        },
+        {
+          id: 3,
+          ...commonSteps.persistentVolumeClaim,
+          canJumpTo: stepIdReached >= 3,
+        },
+        {
+          id: 4,
+          ...commonSteps.reviewAndAssign,
+          canJumpTo: stepIdReached >= 4,
+        },
+      ]
     default:
       return [];
   }

@@ -111,3 +111,7 @@ export const MCO_CREATED_BY_LABEL_KEY =
   'multicluster.odf.openshift.io/created-by';
 export const MCO_CREATED_BY_MC_CONTROLLER =
   'odf-multicluster-managedcluster-controller';
+
+// Recipe parameter keys
+export const K8S_RESOURCE_SELECTOR =
+  'ramendr.openshift.io/k8s-resource-selector';

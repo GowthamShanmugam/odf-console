@@ -161,9 +161,12 @@ const ManagePolicyEmptyPage: React.FC<ManagePolicyEmptyPageProps> = ({
           </p>
         </Trans>
       ) : (
-        t(
-          'You have not enrolled this application yet. To protect your application,'
-        )
+        <Trans t={t}>
+        <p>
+          You have not enrolled this application yet. To protect your&nbsp;
+          application, click <strong>Enroll application.</strong>
+        </p>
+        </Trans>
       )}
     </EmptyPage>
   ) : (

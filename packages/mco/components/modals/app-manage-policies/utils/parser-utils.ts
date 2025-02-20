@@ -1,4 +1,4 @@
-import { DRApplication } from '@odf/mco/constants';
+import { DRApplication, K8S_RESOURCE_SELECTOR } from '@odf/mco/constants';
 import {
   getDRClusterResourceObj,
   getDRPlacementControlResourceObj,
@@ -18,7 +18,10 @@ import {
 } from '@odf/mco/utils';
 import { getLatestDate } from '@odf/shared/details-page/datetime';
 import { arrayify } from '@odf/shared/modals/EditLabelModal';
-import { Selector } from '@openshift-console/dynamic-plugin-sdk';
+import {
+  K8sResourceCommon,
+  Selector,
+} from '@openshift-console/dynamic-plugin-sdk';
 import * as _ from 'lodash-es';
 import {
   ApplicationType,
@@ -93,7 +96,7 @@ export const generateDRPlacementControlInfo = (
 
 export const generateApplicationInfo = (
   appType: DRApplication,
-  application: ACMApplicationKind,
+  application: ACMApplicationKind | K8sResourceCommon,
   workloadNamespace: string,
   plsInfo: PlacementType[],
   drInfo: DRInfoType | {},
@@ -142,3 +145,17 @@ export const getDRResources = (namespace: string) => ({
     }),
   },
 });
+
+export const findDRPCUsingVM = (
+  drpcs: DRPlacementControlKind[],
+  vmName: string,
+  vmNamespace: string
+) => {
+  if (!drpcs?.length) return undefined;
+
+  return drpcs.find(
+    (drpc) =>
+      drpc?.spec?.kubeObjectProtection?.recipeParameters?.[K8S_RESOURCE_SELECTOR]?.includes(vmName) &&
+      drpc?.spec?.protectedNamespaces?.includes(vmNamespace)
+  );
+};
